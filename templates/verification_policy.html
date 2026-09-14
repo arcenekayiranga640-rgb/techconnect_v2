@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Verification Policy — TechConnect{% endblock %}
+{% block content %}
+<div style="max-width:800px;margin:0 auto;">
+
+  <div style="margin-bottom:32px;">
+    <p style="color:#2563EB;font-size:0.78rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:0 0 8px;">Legal</p>
+    <h1 style="color:#0F172A;font-size:1.9rem;margin:0 0 10px;">Verification Policy</h1>
+    <p style="color:#64748b;font-size:0.88rem;margin:0;">Last updated: September 2026 · Applies to all technician registrations.</p>
+    <div style="height:3px;background:linear-gradient(90deg,#2563EB,#10B981);border-radius:2px;margin-top:16px;"></div>
+  </div>
+
+  <div style="background:#f8fafc;border-radius:10px;padding:18px 22px;margin-bottom:28px;border-left:4px solid #2563EB;">
+    <p style="margin:0;color:#334155;font-size:0.88rem;line-height:1.7;">
+      TechConnect maintains the integrity of its platform through a strict, automated certificate verification process.
+      Every technician profile must pass this verification before becoming visible to clients.
+      This policy explains how the system works and the consequences of submitting fraudulent documents.
+    </p>
+  </div>
+
+  <!-- Section 3.1 -->
+  <div style="margin-bottom:28px;">
+    <h2 style="color:#2563EB;font-size:1.05rem;margin:0 0 10px;display:flex;align-items:center;gap:8px;">
+      <span style="background:#2563EB;color:white;font-size:0.72rem;padding:2px 8px;border-radius:4px;">3.1</span>
+      Automated Validation System
+    </h2>
+    <p style="color:#475569;font-size:0.88rem;line-height:1.8;margin:0 0 14px;">
+      When a technician submits their registration, our automated system performs the following checks in real time:
+    </p>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
+      <div style="display:flex;gap:14px;align-items:flex-start;padding:14px 18px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;">
+        <div style="background:#10B981;color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.78rem;font-weight:700;flex-shrink:0;">1</div>
+        <div>
+          <p style="color:#065f46;font-weight:600;font-size:0.85rem;margin:0 0 3px;">Document Type Check</p>
+          <p style="color:#047857;font-size:0.82rem;margin:0;">The system reads the uploaded document using OCR (Optical Character Recognition) and verifies that it matches the selected qualification type (Certificate or Degree).</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:14px;align-items:flex-start;padding:14px 18px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;">
+        <div style="background:#10B981;color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.78rem;font-weight:700;flex-shrink:0;">2</div>
+        <div>
+          <p style="color:#065f46;font-weight:600;font-size:0.85rem;margin:0 0 3px;">Field of Study Cross-Check</p>
+          <p style="color:#047857;font-size:0.82rem;margin:0;">The system scans the document text for keywords that match the declared Field of Study and Skill Category. A mismatch between the document content and the registration data causes instant rejection.</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:14px;align-items:flex-start;padding:14px 18px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;">
+        <div style="background:#10B981;color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.78rem;font-weight:700;flex-shrink:0;">3</div>
+        <div>
+          <p style="color:#065f46;font-weight:600;font-size:0.85rem;margin:0 0 3px;">Certificate Number Recording</p>
+          <p style="color:#047857;font-size:0.82rem;margin:0;">The certificate reference number is recorded in our database. This number is used for manual cross-verification with the Rwanda TVET Board when required, and to detect duplicate or reused certificates.</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:14px;align-items:flex-start;padding:14px 18px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;">
+        <div style="background:#10B981;color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.78rem;font-weight:700;flex-shrink:0;">4</div>
+        <div>
+          <p style="color:#065f46;font-weight:600;font-size:0.85rem;margin:0 0 3px;">Field-Skill Consistency Check</p>
+          <p style="color:#047857;font-size:0.82rem;margin:0;">The system independently verifies that the entered Field of Study and the selected Skill Category are logically consistent with each other — preventing mismatched trade claims.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 3.2 -->
+  <div style="margin-bottom:28px;">
+    <h2 style="color:#2563EB;font-size:1.05rem;margin:0 0 10px;display:flex;align-items:center;gap:8px;">
+      <span style="background:#2563EB;color:white;font-size:0.72rem;padding:2px 8px;border-radius:4px;">3.2</span>
+      Real-Time Feedback on Failure
+    </h2>
+    <p style="color:#475569;font-size:0.88rem;line-height:1.8;margin:0 0 12px;">
+      If any verification check fails, the registration is <strong>blocked immediately</strong> and the technician receives a specific error message explaining exactly what went wrong:
+    </p>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div style="padding:12px 16px;background:#fef2f2;border-radius:8px;border-left:3px solid #ef4444;">
+        <p style="color:#991b1b;font-size:0.83rem;margin:0;"><strong>Error:</strong> "The uploaded document doesn't look like a Certificate. Please check your Qualification Type."</p>
+      </div>
+      <div style="padding:12px 16px;background:#fef2f2;border-radius:8px;border-left:3px solid #ef4444;">
+        <p style="color:#991b1b;font-size:0.83rem;margin:0;"><strong>Error:</strong> "We couldn't find [your field] mentioned on the uploaded document. Please upload the correct certificate."</p>
+      </div>
+      <div style="padding:12px 16px;background:#fef2f2;border-radius:8px;border-left:3px solid #ef4444;">
+        <p style="color:#991b1b;font-size:0.83rem;margin:0;"><strong>Error:</strong> "[Field of Study] doesn't seem related to the Skill Category you selected. Please make sure both describe the same trade."</p>
+      </div>
+    </div>
+    <p style="color:#475569;font-size:0.88rem;line-height:1.8;margin:12px 0 0;">
+      Failed uploads are automatically deleted from our servers. The technician may correct their submission and reapply with the accurate documents.
+    </p>
+  </div>
+
+  <!-- Section 3.3 -->
+  <div style="margin-bottom:28px;">
+    <h2 style="color:#2563EB;font-size:1.05rem;margin:0 0 10px;display:flex;align-items:center;gap:8px;">
+      <span style="background:#2563EB;color:white;font-size:0.72rem;padding:2px 8px;border-radius:4px;">3.3</span>
+      Fraud Prevention & Permanent Blacklisting
+    </h2>
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:20px 22px;border-left:4px solid #F59E0B;">
+      <p style="color:#92400e;font-weight:700;font-size:0.9rem;margin:0 0 10px;">⚠️ Zero Tolerance for Document Fraud</p>
+      <p style="color:#78350f;font-size:0.85rem;line-height:1.8;margin:0 0 10px;">
+        Submitting a digitally altered, forged, expired, or otherwise fraudulent certificate or diploma is a
+        <strong>serious violation</strong> of our platform's integrity. When fraud is detected or reported:
+      </p>
+      <ul style="color:#78350f;font-size:0.85rem;line-height:1.9;padding-left:18px;margin:0 0 12px;">
+        <li>The offending <strong>certificate number is permanently blacklisted</strong> across the entire platform — it can never be used to register again.</li>
+        <li>The associated account is <strong>immediately and permanently banned</strong> with no possibility of appeal.</li>
+        <li>Any active subscription fee is <strong>forfeited in full</strong> — no refund will be issued.</li>
+        <li>The incident may be escalated to the <strong>Rwanda TVET Board</strong> and relevant law enforcement authorities.</li>
+      </ul>
+      <p style="color:#92400e;font-size:0.82rem;font-style:italic;margin:0;">
+        This policy exists to protect the thousands of honest, hard-working graduates who rely on this platform's credibility to find employment.
+      </p>
+    </div>
+  </div>
+
+  <div style="background:#f8fafc;border-radius:10px;padding:18px 22px;border:1px solid #e2e8f0;">
+    <p style="color:#0F172A;font-weight:700;font-size:0.88rem;margin:0 0 6px;">Questions about verification?</p>
+    <p style="color:#64748b;font-size:0.83rem;margin:0;">Contact us at <a href="mailto:support@techconnect.rw" style="color:#2563EB;">support@techconnect.rw</a> or <a href="https://wa.me/250794419258" style="color:#10B981;font-weight:600;">WhatsApp</a>.</p>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}{{ t.register_title }} - TechConnect{% endblock %}
+{% block content %}
+<div class="card">
+    <h1>{{ t.register_title }}</h1>
+    <p class="hint">{{ t.register_hint }}</p>
+    <form method="POST" action="{{ url_for('register') }}" enctype="multipart/form-data">
+        <label for="full_name">{{ t.fullname_label }}</label>
+        <input type="text" id="full_name" name="full_name" value="{{ form_data.full_name or '' }}" required>
+        <label for="qualification_type">{{ t.qual_type_label }}</label>
+        <select id="qualification_type" name="qualification_type" required>
+            <option value="">{{ t.select_type }}</option>
+            <option value="Advanced TVET Certificate V (L5)" {% if form_data.qualification_type == 'Advanced TVET Certificate V (L5)' %}selected{% endif %}>
+                🎓 Advanced TVET Certificate V (L5) — Rwanda Technical Certificate of Education
+            </option>
+            <option value="Professional Certificate" {% if form_data.qualification_type == 'Professional Certificate' %}selected{% endif %}>
+                📜 Professional Certificate — Industry / Vocational Credential
+            </option>
+            <option value="Degree / Advanced Diploma (L6+)" {% if form_data.qualification_type == 'Degree / Advanced Diploma (L6+)' %}selected{% endif %}>
+                🏛️ Degree / Advanced Diploma (L6+) — University / Higher Education
+            </option>
+        </select>
+        <p class="hint">
+            ℹ️ <strong>TVET S6 graduates</strong> select "Advanced TVET Certificate V (L5)" —
+            this is the <em>Rwanda Technical Certificate of Education</em> issued by NESA.
+        </p>
+        <div id="degree_level_wrapper" style="display:none;">
+            <label for="degree_level">{{ t.degree_level_label }}</label>
+            <select id="degree_level" name="degree_level">
+                <option value="">-- Select your qualification level --</option>
+                <optgroup label="🎓 TVET Qualifications (NESA)">
+                    <option value="Advanced TVET Certificate V (L5)" {% if form_data.degree_level == 'Advanced TVET Certificate V (L5)' %}selected{% endif %}>
+                        L5 — Advanced TVET Certificate V (Rwanda Technical Certificate of Education)
+                    </option>
+                </optgroup>
+                <optgroup label="📜 Professional Certificates">
+                    <option value="Professional Certificate" {% if form_data.degree_level == 'Professional Certificate' %}selected{% endif %}>
+                        Professional Certificate (Industry Credential)
+                    </option>
+                </optgroup>
+                <optgroup label="🏛️ University / Higher Education (L6+)">
+                    <option value="A1 / Advanced Diploma" {% if form_data.degree_level == 'A1 / Advanced Diploma' %}selected{% endif %}>A1 / Advanced Diploma (L6)</option>
+                    <option value="Bachelor's Degree" {% if form_data.degree_level == "Bachelor's Degree" %}selected{% endif %}>Bachelor's Degree (L7)</option>
+                    <option value="Master's Degree" {% if form_data.degree_level == "Master's Degree" %}selected{% endif %}>Master's Degree (L8)</option>
+                    <option value="PhD / Doctorate" {% if form_data.degree_level == 'PhD / Doctorate' %}selected{% endif %}>PhD / Doctorate (L9)</option>
+                </optgroup>
+            </select>
+        </div>
+        <label for="degree">{{ t.field_label }}</label>
+        <input type="text" id="degree" name="degree" value="{{ form_data.degree or '' }}" required>
+        <label for="skill_category">{{ t.skill_label }}</label>
+        <select id="skill_category" name="skill_category" required>
+            <option value="">{{ t.select_trade }}</option>
+            {% for category in skill_categories %}
+                <option value="{{ category }}" {% if form_data.skill_category == category %}selected{% endif %}>{{ category }}</option>
+            {% endfor %}
+        </select>
+        <div class="row">
+            <div>
+                <label for="phone">{{ t.phone_label_reg }}</label>
+                <input type="tel" id="phone" name="phone" placeholder="07XXXXXXXX" value="{{ form_data.phone or '' }}" required>
+            </div>
+            <div>
+                <label for="whatsapp">{{ t.whatsapp_label }}</label>
+                <input type="tel" id="whatsapp" name="whatsapp" placeholder="07XXXXXXXX" value="{{ form_data.whatsapp or '' }}">
+            </div>
+        </div>
+        <label for="email">{{ t.email_label }}</label>
+        <input type="email" id="email" name="email" value="{{ form_data.email or '' }}" required>
+        <div class="row">
+            <div>
+                <label for="password">{{ t.password_label }}</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <div>
+                <label for="confirm_password">{{ t.confirm_pw_label }}</label>
+                <input type="password" id="confirm_password" name="confirm_password" required>
+            </div>
+        </div>
+        <p class="hint" id="pw_hint" style="color:var(--error);">8+ chars, uppercase, lowercase, number & symbol.</p>
+        <p class="hint" id="pw_match"></p>
+        <label for="province">Province *</label>
+        <select id="province" name="province" required>
+            <option value="">{{ t.select_province }}</option>
+            {% for prov in provinces %}
+                <option value="{{ prov }}" {% if form_data.province == prov %}selected{% endif %}>{{ prov }}</option>
+            {% endfor %}
+        </select>
+        <label for="district">District *</label>
+        <select id="district" name="district" required disabled>
+            <option value="">{{ t.select_province }}</option>
+        </select>
+        <label for="sector">Sector *</label>
+        <select id="sector" name="sector" required disabled>
+            <option value="">{{ t.select_district }}</option>
+        </select>
+        <label for="bio">{{ t.bio_label }}</label>
+        <textarea id="bio" name="bio" rows="3">{{ form_data.bio or '' }}</textarea>
+        <label for="photo">{{ t.photo_label }}</label>
+        <input type="file" id="photo" name="photo" accept=".png,.jpg,.jpeg,.webp">
+        <label for="certificate">{{ t.cert_upload_label }}</label>
+        <input type="file" id="certificate" name="certificate" accept=".pdf,.png,.jpg,.jpeg" required>
+        <p class="hint">PDF or image, max 5MB. Must match your field of study.</p>
+        <label for="certificate_number">{{ t.cert_number_label }}</label>
+        <input type="text" id="certificate_number" name="certificate_number" value="{{ form_data.certificate_number or '' }}" required>
+        <button type="submit">{{ t.create_btn }}</button>
+    </form>
+</div>
+<script>
+const fn=document.getElementById('full_name');
+fn.addEventListener('input',()=>{const p=fn.selectionStart,c=fn.value.replace(/(^|\s)([a-z])/g,(m,b,l)=>b+l.toUpperCase());if(c!==fn.value){fn.value=c;fn.setSelectionRange(p,p);}});
+const qt=document.getElementById('qualification_type'),lw=document.getElementById('degree_level_wrapper'),ls=document.getElementById('degree_level');
+function updL(){if(qt.value){lw.style.display='block';ls.required=true;}else{lw.style.display='none';ls.required=false;ls.value='';}}
+qt.addEventListener('change',updL);
+const pw=document.getElementById('password'),pc=document.getElementById('confirm_password'),ph=document.getElementById('pw_hint'),pm=document.getElementById('pw_match');
+function ok(v){return v.length>=8&&/[A-Z]/.test(v)&&/[a-z]/.test(v)&&/[0-9]/.test(v)&&/[^A-Za-z0-9]/.test(v);}
+function updP(){const v=pw.value;if(ok(v)){ph.style.color='var(--success)';ph.textContent='✅ Password OK.';}else{ph.style.color='var(--error)';ph.textContent='❌ 8+ chars, uppercase, lowercase, number & symbol.';}if(pc.value.length){pm.style.color=pc.value===v?'var(--success)':'var(--error)';pm.textContent=pc.value===v?'✅ Passwords match.':'❌ Passwords do not match.';}}
+pw.addEventListener('input',updP);pc.addEventListener('input',updP);
+document.querySelector('form').addEventListener('submit',e=>{if(!ok(pw.value)){e.preventDefault();updP();pw.focus();}});
+const prov=document.getElementById('province'),dist=document.getElementById('district'),sect=document.getElementById('sector');
+const PD="{{ form_data.district or '' }}",PS="{{ form_data.sector or '' }}";
+async function loadDist(p,pre){if(!p){dist.innerHTML='<option value="">Select province first</option>';dist.disabled=true;sect.innerHTML='<option value="">Select district first</option>';sect.disabled=true;return;}const r=await fetch('/api/districts?province='+encodeURIComponent(p));const d=await r.json();dist.innerHTML='<option value="">Select district</option>'+d.map(x=>`<option value="${x}" ${x===pre?'selected':''}>${x}</option>`).join('');dist.disabled=false;}
+async function loadSect(p,di,pre){if(!di){sect.innerHTML='<option value="">Select district first</option>';sect.disabled=true;return;}const r=await fetch('/api/sectors?province='+encodeURIComponent(p)+'&district='+encodeURIComponent(di));const s=await r.json();sect.innerHTML='<option value="">Select sector</option>'+s.map(x=>`<option value="${x}" ${x===pre?'selected':''}>${x}</option>`).join('');sect.disabled=false;}
+prov.addEventListener('change',()=>loadDist(prov.value,''));
+dist.addEventListener('change',()=>loadSect(prov.value,dist.value,''));
+window.addEventListener('DOMContentLoaded',async()=>{updL();if(prov.value){await loadDist(prov.value,PD);if(PD)await loadSect(prov.value,PD,PS);}});
+</script>
+{% endblock %}

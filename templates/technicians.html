@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}{{ t.find_title }} - TechConnect{% endblock %}
+{% block content %}
+<div class="card">
+    <h1>{{ t.find_title }}</h1>
+    {% if has_access %}
+    <div style="background:#eaf6ec;color:var(--success);border:1px solid #b2dfb2;border-radius:8px;padding:12px 16px;font-size:0.92em;margin-bottom:8px;">
+        ✅ {{ t.access_active }} <strong id="accessCountdown"></strong>
+    </div>
+    {% else %}
+    <div style="background:#fff8e6;color:#7a5c00;border:1px solid #f0d060;border-radius:8px;padding:12px 16px;font-size:0.92em;margin-bottom:8px;">
+        🔒 {{ t.access_locked }}
+        <a href="{{ url_for('pay') }}" class="btn" style="margin-top:8px;display:inline-block;padding:8px 18px;font-size:0.88em;">{{ t.unlock_btn }}</a>
+    </div>
+    {% endif %}
+
+    <form method="GET" action="{{ url_for('list_technicians') }}" style="margin-top:16px;">
+        <label for="skill" style="margin-top:8px;">{{ t.trade_label }}</label>
+        <select name="skill" id="skill">
+            <option value="">{{ t.all_trades }}</option>
+            {% for category in skill_categories %}
+                <option value="{{ category }}" {% if search_skill == category %}selected{% endif %}>{{ category }}</option>
+            {% endfor %}
+        </select>
+        <div style="margin-top:14px;">
+            <button type="button" id="toggleBtn" style="background:none;border:1px solid var(--blue);color:var(--blue);padding:7px 16px;border-radius:6px;font-size:0.88em;font-weight:600;cursor:pointer;margin-top:0;">
+                {% if search_province or search_district or search_sector %}{{ t.hide_location }}{% else %}{{ t.filter_location }}{% endif %}
+            </button>
+        </div>
+        <div id="locationFilters" style="{% if not search_province and not search_district and not search_sector %}display:none;{% endif %}margin-top:12px;">
+            <label for="province">{{ t.province_label }}</label>
+            <select name="province" id="province">
+                <option value="">{{ t.all_provinces }}</option>
+                {% for prov in provinces %}
+                    <option value="{{ prov }}" {% if search_province == prov %}selected{% endif %}>{{ prov }}</option>
+                {% endfor %}
+            </select>
+            <label for="district">{{ t.district_label }}</label>
+            <select name="district" id="district" {% if not search_province %}disabled{% endif %}>
+                <option value="">{% if search_province %}{{ t.all_districts }}{% else %}{{ t.select_province }}{% endif %}</option>
+                {% if search_province and search_district %}<option value="{{ search_district }}" selected>{{ search_district }}</option>{% endif %}
+            </select>
+            <label for="sector">{{ t.sector_label }}</label>
+            <select name="sector" id="sector" {% if not search_district %}disabled{% endif %}>
+                <option value="">{% if search_district %}{{ t.all_sectors }}{% else %}{{ t.select_district }}{% endif %}</option>
+                {% if search_district and search_sector %}<option value="{{ search_sector }}" selected>{{ search_sector }}</option>{% endif %}
+            </select>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:16px;">
+            <button type="submit" style="margin-top:0;flex:1;">{{ t.search_btn }}</button>
+            {% if search_skill or search_province or search_district or search_sector %}
+                <a href="{{ url_for('list_technicians') }}" class="btn btn-secondary" style="margin-top:0;text-align:center;">{{ t.clear_btn }}</a>
+            {% endif %}
+        </div>
+    </form>
+
+    <div style="margin:16px 0 4px;padding:10px 14px;background:#f0f4f9;border-radius:6px;font-size:0.88em;color:#333;">
+        {% if search_skill or search_province or search_district or search_sector %}
+            {{ t.showing }} {% if search_skill %}<strong>{{ search_skill }}</strong>{% endif %}
+            {% if search_province %} in <strong>{{ search_province }}</strong>{% endif %}
+            {% if search_district %} › <strong>{{ search_district }}</strong>{% endif %}
+            {% if search_sector %} › <strong>{{ search_sector }}</strong>{% endif %} —
+        {% else %}{{ t.showing_all }} —{% endif %}
+        <strong>{{ technicians|length }}</strong> {{ t.found }}
+    </div>
+
+    <div style="margin-top:12px;">
+    {% if technicians %}
+        {% for tech in technicians %}
+        <div class="tech-card">
+            {% if tech.photo_filename %}
+                <img class="avatar" src="{{ url_for('static', filename='uploads/photos/' + tech.photo_filename) }}" alt="{{ tech.full_name }}">
+            {% else %}
+                <div class="avatar-placeholder">{{ tech.full_name[0]|upper }}</div>
+            {% endif %}
+            <div style="flex:1;">
+                <span class="tag">{{ tech.skill_category }}</span>
+                {% if tech.verification_status == 'Verified' %}<span class="verified-tag">{{ t.verified }}</span>
+                {% elif tech.certificate_filename %}<span class="verified-tag" style="background:#fff8e6;color:#8a6d00;">{{ t.pending }}</span>{% endif %}
+                <h3>{{ tech.full_name }}</h3>
+                <p class="meta"><strong>{{ t.qualification_label }}</strong>
+                    {% if tech.qualification_type == 'Degree / Advanced Diploma (L6+)' %}{{ tech.degree_level }} in {{ tech.degree }}
+                    {% elif tech.qualification_type == 'Advanced TVET Certificate V (L5)' %}Advanced TVET Certificate V (L5) in {{ tech.degree }}
+                    {% else %}{{ tech.qualification_type }} in {{ tech.degree }}{% endif %}
+                </p>
+                <p class="meta">📍 <strong>{{ tech.sector }}</strong>, {{ tech.district }}, {{ tech.province }}</p>
+                {% if has_access %}
+                    <p class="meta">📞 <strong>{{ tech.phone }}</strong>{% if tech.whatsapp %} | 💬 <strong>{{ tech.whatsapp }}</strong>{% endif %}</p>
+                    {% if tech.email %}<p class="meta">✉️ {{ tech.email }}</p>{% endif %}
+                {% else %}
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:4px;padding:8px 12px;background:#f4f7fb;border-radius:6px;font-size:0.88em;color:#999;">
+                        <span>📞 •••••••••</span>
+                        {% if tech.whatsapp %}<span>💬 •••••••••</span>{% endif %}
+                        {% if tech.email %}<span>✉️ ••••••@•••••</span>{% endif %}
+                        <a href="{{ url_for('pay') }}" style="background:var(--blue);color:white;padding:4px 12px;border-radius:16px;font-size:0.85em;font-weight:600;text-decoration:none;">{{ t.unlock_contact }}</a>
+                    </div>
+                {% endif %}
+                {% if tech.bio %}<p class="meta" style="color:#555;font-style:italic;margin-top:4px;">{{ tech.bio }}</p>{% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">{{ t.no_technicians }} {{ t.try_removing }} <a href="{{ url_for('register') }}">{{ t.signup_first }}</a>.</div>
+    {% endif %}
+    </div>
+</div>
+
+<script>
+const toggleBtn=document.getElementById('toggleBtn');
+const locationFilters=document.getElementById('locationFilters');
+const openText="{{ t.filter_location }}";
+const closeText="{{ t.hide_location }}";
+toggleBtn.addEventListener('click',()=>{const o=locationFilters.style.display!=='none';locationFilters.style.display=o?'none':'block';toggleBtn.textContent=o?openText:closeText;});
+const prov=document.getElementById('province'),dist=document.getElementById('district'),sect=document.getElementById('sector');
+const PD="{{ search_district }}",PS="{{ search_sector }}";
+const ADT="{{ t.all_districts }}",AST="{{ t.all_sectors }}",SPT="{{ t.select_province }}",SDT="{{ t.select_district }}";
+async function loadDist(province,pre){if(!province){dist.innerHTML=`<option value="">${SPT}</option>`;dist.disabled=true;sect.innerHTML=`<option value="">${SDT}</option>`;sect.disabled=true;return;}const r=await fetch('/api/districts?province='+encodeURIComponent(province));const d=await r.json();dist.innerHTML=`<option value="">${ADT}</option>`+d.map(x=>`<option value="${x}" ${x===pre?'selected':''}>${x}</option>`).join('');dist.disabled=false;}
+async function loadSect(province,district,pre){if(!district){sect.innerHTML=`<option value="">${SDT}</option>`;sect.disabled=true;return;}const r=await fetch('/api/sectors?province='+encodeURIComponent(province)+'&district='+encodeURIComponent(district));const s=await r.json();sect.innerHTML=`<option value="">${AST}</option>`+s.map(x=>`<option value="${x}" ${x===pre?'selected':''}>${x}</option>`).join('');sect.disabled=false;}
+prov.addEventListener('change',()=>{loadDist(prov.value,'');sect.innerHTML=`<option value="">${SDT}</option>`;sect.disabled=true;});
+dist.addEventListener('change',()=>{loadSect(prov.value,dist.value,'');});
+window.addEventListener('DOMContentLoaded',async()=>{if(prov.value){await loadDist(prov.value,PD);if(PD)await loadSect(prov.value,PD,PS);}});
+{% if has_access %}
+let s={{ access_seconds }};
+const cd=document.getElementById('accessCountdown');
+const ex="{{ t.expired }}";
+function fmt(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;return `${h}h ${m}m ${sc}s`;}
+function tick(){if(s<=0){cd.textContent=ex;return;}cd.textContent=fmt(s);s--;setTimeout(tick,1000);}
+tick();
+{% endif %}
+</script>
+{% endblock %}

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Login — TechConnect</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #0d1b36; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .card { background: white; border-radius: 16px; padding: 40px 36px; width: 100%; max-width: 400px; box-shadow: 0 24px 48px rgba(0,0,0,0.3); }
+  .logo { text-align: center; margin-bottom: 28px; }
+  .logo-icon { font-size: 2.5rem; }
+  .logo-name { font-size: 1.3rem; font-weight: 700; color: #0d1b36; margin-top: 8px; }
+  .logo-sub { font-size: 0.78rem; color: #94a3b8; letter-spacing: 1px; text-transform: uppercase; }
+  h2 { font-size: 1rem; font-weight: 600; color: #0d1b36; margin-bottom: 20px; text-align: center; }
+  label { display: block; font-size: 0.82rem; font-weight: 600; color: #4a5568; margin-bottom: 6px; margin-top: 16px; }
+  input { width: 100%; padding: 11px 14px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.92rem; outline: none; transition: border-color 0.2s; }
+  input:focus { border-color: #1a6ef5; }
+  button { width: 100%; margin-top: 22px; background: #1a6ef5; color: white; border: none; padding: 13px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  button:hover { background: #0d4db5; }
+  .flash { background: #fee2e2; color: #991b1b; padding: 10px 14px; border-radius: 8px; font-size: 0.82rem; margin-bottom: 16px; }
+  .hint { text-align: center; font-size: 0.75rem; color: #94a3b8; margin-top: 18px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    <div class="logo-name">TechConnect</div>
+    <div class="logo-sub">Admin Console</div>
+  </div>
+  <h2>Sign in to continue</h2>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for category, message in messages %}
+      <div class="flash">{{ message }}</div>
+    {% endfor %}{% endif %}
+  {% endwith %}
+  <form method="POST" action="{{ url_for('admin_login') }}">
+    <label for="password">Admin Password</label>
+    <input type="password" id="password" name="password" placeholder="Enter admin password" required autofocus>
+    <button type="submit">Access Dashboard</button>
+  </form>
+  <div class="hint">TechConnect platform administrators only.</div>
+</div>
+</body>
+</html>

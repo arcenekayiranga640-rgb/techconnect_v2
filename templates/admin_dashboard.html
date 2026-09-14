@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TechConnect — Admin Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --navy:#0d1b36;--navy2:#142248;--blue:#1a6ef5;--blue2:#4da6ff;
+    --bg:#f0f3f8;--surface:#ffffff;--surface2:#f7f9fc;--border:#e2e8f0;
+    --text1:#0d1b36;--text2:#4a5568;--text3:#94a3b8;
+    --green:#10b981;--red:#ef4444;--amber:#f59e0b;--purple:#8b5cf6;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text1);display:flex;min-height:100vh;}
+
+  /* SIDEBAR */
+  .sidebar{width:240px;min-height:100vh;background:var(--navy);display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto;}
+  .sidebar-logo{padding:24px 20px 20px;border-bottom:1px solid rgba(255,255,255,0.08);}
+  .sidebar-logo .wordmark{color:white;font-size:1.1rem;font-weight:700;}
+  .sidebar-logo .sub{color:var(--blue2);font-size:0.7rem;font-weight:500;letter-spacing:1px;text-transform:uppercase;margin-top:2px;}
+  .sidebar-section{padding:20px 12px 8px;}
+  .sidebar-section-label{color:rgba(255,255,255,0.35);font-size:0.65rem;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;padding:0 8px;margin-bottom:6px;}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;color:rgba(255,255,255,0.6);font-size:0.85rem;font-weight:500;transition:all 0.15s;text-decoration:none;margin-bottom:2px;}
+  .nav-item:hover{background:rgba(255,255,255,0.07);color:white;}
+  .nav-item.active{background:var(--blue);color:white;}
+  .nav-icon{font-size:1rem;width:18px;text-align:center;flex-shrink:0;}
+  .sidebar-bottom{margin-top:auto;padding:16px 12px;border-top:1px solid rgba(255,255,255,0.08);}
+
+  /* MAIN */
+  .main{flex:1;display:flex;flex-direction:column;min-width:0;}
+
+  /* TOPBAR */
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+  .topbar-title{font-size:1rem;font-weight:700;color:var(--text1);}
+  .topbar-sub{font-size:0.75rem;color:var(--text3);}
+  .topbar-right{display:flex;align-items:center;gap:12px;}
+  .lang-toggle{display:flex;background:var(--bg);border-radius:6px;overflow:hidden;border:1px solid var(--border);}
+  .lang-btn{padding:5px 12px;font-size:0.78rem;font-weight:600;cursor:pointer;color:var(--text2);background:none;border:none;transition:all 0.15s;}
+  .lang-btn.active{background:var(--blue);color:white;}
+  .status-pill{background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:0.78rem;font-weight:500;color:var(--text2);display:flex;align-items:center;gap:6px;}
+  .status-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+  .refresh-btn{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 12px;font-size:0.78rem;font-weight:600;color:var(--blue);cursor:pointer;}
+  .refresh-btn:hover{background:#e8f1ff;}
+
+  /* CONTENT */
+  .content{padding:28px;flex:1;}
+  .section-title{font-size:0.7rem;font-weight:700;color:var(--text3);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:14px;margin-top:28px;}
+  .section-title:first-child{margin-top:0;}
+
+  /* METRIC CARDS */
+  .cards-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+  .card{background:var(--surface);border-radius:12px;padding:20px 22px;border:1px solid var(--border);position:relative;overflow:hidden;}
+  .card-label{font-size:0.75rem;font-weight:500;color:var(--text3);margin-bottom:8px;}
+  .card-value{font-size:1.75rem;font-weight:700;color:var(--text1);line-height:1;margin-bottom:6px;}
+  .card-delta{font-size:0.75rem;font-weight:500;}
+  .card-delta.up{color:var(--green);}
+  .card-delta.down{color:var(--red);}
+  .card-accent{position:absolute;right:18px;top:18px;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;}
+  .card-unit{font-size:0.68rem;color:var(--text3);margin-top:4px;}
+
+  /* CHARTS */
+  .charts-row{display:grid;grid-template-columns:3fr 2fr;gap:16px;}
+  .charts-row-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .chart-card{background:var(--surface);border-radius:12px;padding:22px;border:1px solid var(--border);}
+  .chart-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;}
+  .chart-title{font-size:0.88rem;font-weight:600;color:var(--text1);}
+  .chart-subtitle{font-size:0.72rem;color:var(--text3);margin-top:2px;}
+  .chart-badge{font-size:0.7rem;font-weight:600;padding:3px 9px;border-radius:12px;background:#e8f1ff;color:var(--blue);white-space:nowrap;}
+  .chart-wrap{position:relative;height:220px;background:var(--surface2);border-radius:8px;padding:8px;}
+
+  /* TABLES */
+  .table-card{background:var(--surface);border-radius:12px;border:1px solid var(--border);overflow:hidden;}
+  .table-header{padding:16px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+  .table-title{font-size:0.88rem;font-weight:600;color:var(--text1);}
+  .table-count{font-size:0.72rem;color:var(--text3);background:var(--bg);padding:3px 10px;border-radius:12px;}
+  .table-scroll{overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;}
+  thead th{background:var(--surface2);padding:10px 16px;text-align:left;font-size:0.72rem;font-weight:600;color:var(--text3);letter-spacing:0.5px;text-transform:uppercase;border-bottom:1px solid var(--border);}
+  tbody td{padding:11px 16px;font-size:0.82rem;color:var(--text2);border-bottom:1px solid var(--border);}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:var(--surface2);}
+  .badge{display:inline-flex;align-items:center;gap:4px;font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:20px;}
+  .badge-green{background:#d1fae5;color:#065f46;}
+  .badge-red{background:#fee2e2;color:#991b1b;}
+  .badge-amber{background:#fef3c7;color:#92400e;}
+  .badge-blue{background:#dbeafe;color:#1e40af;}
+  .badge-purple{background:#ede9fe;color:#5b21b6;}
+  .mono{font-family:monospace;font-size:0.78rem;}
+  .alert-row td{background:#fff7ed!important;}
+  .alert-row:hover td{background:#ffedd5!important;}
+  tr.alert-row td:first-child{border-left:3px solid var(--amber);}
+  .empty-row td{text-align:center;color:var(--text3);padding:24px;font-style:italic;}
+
+  /* LOADING */
+  .loading{display:inline-block;width:14px;height:14px;border:2px solid #e2e8f0;border-top-color:var(--blue);border-radius:50%;animation:spin 0.6s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  @media(max-width:1100px){.cards-row{grid-template-columns:repeat(2,1fr);}.charts-row{grid-template-columns:1fr;}}
+  @media(max-width:768px){.sidebar{display:none;}.charts-row-2{grid-template-columns:1fr;}}
+  @media(max-width:480px){.cards-row{grid-template-columns:1fr;}.content{padding:16px;}}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="wordmark">⚡ TechConnect</div>
+    <div class="sub">Admin Console</div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Overview</div>
+    <a class="nav-item active" href="/admin"><span class="nav-icon">📊</span> Dashboard</a>
+    <a class="nav-item" href="#"><span class="nav-icon">💰</span> Revenue</a>
+    <a class="nav-item" href="#"><span class="nav-icon">🔓</span> Unlocks</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Users</div>
+    <a class="nav-item" href="#"><span class="nav-icon">🔧</span> Technicians</a>
+    <a class="nav-item" href="#"><span class="nav-icon">👤</span> Clients</a>
+    <a class="nav-item" href="#"><span class="nav-icon">✅</span> Verifications</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Finance</div>
+    <a class="nav-item" href="#"><span class="nav-icon">🧾</span> Transactions</a>
+    <a class="nav-item" href="#"><span class="nav-icon">📅</span> Subscriptions</a>
+    <a class="nav-item" href="#"><span class="nav-icon">⚠️</span> Retention Alerts</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">System</div>
+    <a class="nav-item" href="#"><span class="nav-icon">⚙️</span> Settings</a>
+    <a class="nav-item" href="#"><span class="nav-icon">📤</span> Export Data</a>
+  </div>
+  <div class="sidebar-bottom">
+    <a class="nav-item" href="/admin/logout"><span class="nav-icon">🚪</span> Log Out</a>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div>
+      <div class="topbar-title" id="page-title">Analytics Dashboard</div>
+      <div class="topbar-sub" id="datetime">—</div>
+    </div>
+    <div class="topbar-right">
+      <button class="refresh-btn" onclick="loadAll()">↻ Refresh</button>
+      <div class="lang-toggle">
+        <button class="lang-btn active" onclick="setLang('en',this)">🇬🇧 EN</button>
+        <button class="lang-btn" onclick="setLang('fr',this)">🇫🇷 FR</button>
+      </div>
+      <div class="status-pill">
+        <span class="status-dot"></span>
+        <span id="live-label">Live</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- METRIC CARDS -->
+    <div class="section-title" id="lbl-metrics">Real-Time Metrics</div>
+    <div class="cards-row">
+      <div class="card">
+        <div class="card-label" id="lbl-revenue">Total Revenue</div>
+        <div class="card-value" id="val-revenue"><span class="loading"></span></div>
+        <div class="card-delta up" id="delta-revenue">Loading…</div>
+        <div class="card-accent" style="background:#e8f1ff;">💰</div>
+        <div class="card-unit">RWF</div>
+      </div>
+      <div class="card">
+        <div class="card-label" id="lbl-techs">Active Paid Technicians</div>
+        <div class="card-value" id="val-techs"><span class="loading"></span></div>
+        <div class="card-delta up" id="delta-techs">Loading…</div>
+        <div class="card-accent" style="background:#d1fae5;">🔧</div>
+      </div>
+      <div class="card">
+        <div class="card-label" id="lbl-unlocks">Total Unlocks Completed</div>
+        <div class="card-value" id="val-unlocks"><span class="loading"></span></div>
+        <div class="card-delta up" id="delta-unlocks">Loading…</div>
+        <div class="card-accent" style="background:#fef3c7;">🔓</div>
+      </div>
+      <div class="card">
+        <div class="card-label" id="lbl-churn">Active Churn Rate</div>
+        <div class="card-value" id="val-churn"><span class="loading"></span></div>
+        <div class="card-delta down" id="delta-churn">Loading…</div>
+        <div class="card-accent" style="background:#fee2e2;">📉</div>
+      </div>
+    </div>
+
+    <!-- TREND CHARTS -->
+    <div class="section-title" id="lbl-trends">Revenue & Demographic Trends</div>
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title" id="lbl-rev-chart">Monthly Revenue Streams</div>
+            <div class="chart-subtitle" id="lbl-rev-sub">Client Unlock Revenue vs. Technician Subscription Revenue</div>
+          </div>
+          <span class="chart-badge">12 Months</span>
+        </div>
+        <div class="chart-wrap"><canvas id="revenueChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title" id="lbl-demo-chart">Demographic Onboarding</div>
+            <div class="chart-subtitle" id="lbl-demo-sub">Monthly new technician registrations</div>
+          </div>
+          <span class="chart-badge" id="lbl-monthly">Monthly</span>
+        </div>
+        <div class="chart-wrap"><canvas id="demoChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- PIE CHARTS -->
+    <div class="section-title" id="lbl-distribution">Distribution & Plan Preferences</div>
+    <div class="charts-row-2">
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title" id="lbl-trade-chart">Technician Distribution by Trade</div>
+            <div class="chart-subtitle">% split across all registered trades</div>
+          </div>
+        </div>
+        <div class="chart-wrap" style="height:240px;"><canvas id="tradeChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title" id="lbl-plan-chart">Subscription Plan Preferences</div>
+            <div class="chart-subtitle">1-Month (3,000 RWF) vs. 3-Month (6,000 RWF)</div>
+          </div>
+        </div>
+        <div class="chart-wrap" style="height:240px;"><canvas id="planChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- TABLE 1: TRANSACTIONS -->
+    <div class="section-title" id="lbl-tables">Live Data Tables</div>
+    <div class="table-card" style="margin-bottom:20px;">
+      <div class="table-header">
+        <div class="table-title" id="lbl-txn-table">Live Transaction Ledger</div>
+        <span class="table-count" id="txn-count">Loading…</span>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th id="th-time">Timestamp</th>
+              <th id="th-txn">Txn ID / Code</th>
+              <th id="th-phone">Phone</th>
+              <th id="th-amount">Amount (RWF)</th>
+              <th id="th-status">Status</th>
+            </tr>
+          </thead>
+          <tbody id="txn-body">
+            <tr><td colspan="5" class="empty-row" style="text-align:center;padding:20px;color:#94a3b8;">Loading transactions…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TABLE 2: RETENTION ALERTS -->
+    <div class="table-card" style="margin-bottom:20px;">
+      <div class="table-header">
+        <div class="table-title" id="lbl-retention-table">Retention Alert Desk</div>
+        <span class="table-count" id="retention-count">Loading…</span>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th id="th-name">Tech Name</th>
+              <th id="th-phone2">Phone Number</th>
+              <th id="th-trade">Trade</th>
+              <th id="th-district">District</th>
+              <th id="th-joined">Joined</th>
+            </tr>
+          </thead>
+          <tbody id="retention-body">
+            <tr><td colspan="5" class="empty-row" style="text-align:center;padding:20px;color:#94a3b8;">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TABLE 3: TOP PERFORMERS -->
+    <div class="table-card" style="margin-bottom:20px;">
+      <div class="table-header">
+        <div class="table-title" id="lbl-perf-table">Top Profile Performers</div>
+        <span class="table-count" id="perf-count">Loading…</span>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th id="th-pname">Name</th>
+              <th id="th-ptrade">Trade</th>
+              <th id="th-province">Province</th>
+              <th id="th-registered">Registered</th>
+            </tr>
+          </thead>
+          <tbody id="perf-body">
+            <tr><td colspan="5" class="empty-row" style="text-align:center;padding:20px;color:#94a3b8;">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+Chart.defaults.font.family = 'Segoe UI, Arial, sans-serif';
+Chart.defaults.font.size = 11;
+Chart.defaults.color = '#94a3b8';
+
+let revenueChart, demoChart, tradeChart, planChart;
+
+// ── DATETIME ──
+function updateTime() {
+  const now = new Date();
+  document.getElementById('datetime').textContent =
+    now.toLocaleDateString('en-RW', {weekday:'long',year:'numeric',month:'long',day:'numeric'}) +
+    ' · ' + now.toLocaleTimeString('en-RW', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+updateTime(); setInterval(updateTime, 1000);
+
+// ── FORMAT NUMBERS ──
+function fmt(n) { return Number(n).toLocaleString(); }
+
+// ── FETCH METRICS ──
+async function loadMetrics() {
+  try {
+    const res = await fetch('/admin/api/metrics');
+    if (!res.ok) throw new Error('API error');
+    const d = await res.json();
+    document.getElementById('val-revenue').textContent = fmt(d.total_revenue);
+    document.getElementById('delta-revenue').textContent = '↑ From client unlocks (200 RWF each)';
+    document.getElementById('val-techs').textContent = fmt(d.active_technicians);
+    document.getElementById('delta-techs').textContent = 'Registered on platform';
+    document.getElementById('val-unlocks').textContent = fmt(d.total_unlocks);
+    document.getElementById('delta-unlocks').textContent = `↑ ${fmt(d.total_unlocks * 200)} RWF generated`;
+    document.getElementById('val-churn').textContent = d.churn_rate + '%';
+    document.getElementById('delta-churn').textContent = 'Monitor renewal rates';
+  } catch(e) {
+    ['val-revenue','val-techs','val-unlocks','val-churn'].forEach(id => {
+      document.getElementById(id).textContent = '—';
+    });
+  }
+}
+
+// ── FETCH TRANSACTIONS ──
+async function loadTransactions() {
+  try {
+    const res = await fetch('/admin/api/transactions');
+    if (!res.ok) throw new Error();
+    const rows = await res.json();
+    const tbody = document.getElementById('txn-body');
+    document.getElementById('txn-count').textContent = rows.length + ' records';
+    if (rows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#94a3b8;font-style:italic;">No transactions yet</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map((r,i) => `
+      <tr>
+        <td>${r.claimed_at || '—'}</td>
+        <td class="mono">${r.code || '—'}</td>
+        <td class="mono">${r.phone || '—'}</td>
+        <td class="mono">200</td>
+        <td><span class="badge badge-green">✓ Claimed</span></td>
+      </tr>
+    `).join('');
+  } catch(e) {
+    document.getElementById('txn-body').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#ef4444;">Failed to load</td></tr>';
+  }
+}
+
+// ── FETCH TECHNICIANS (for retention + performers) ──
+async function loadTechnicians() {
+  try {
+    const res = await fetch('/admin/api/technicians');
+    if (!res.ok) throw new Error();
+    const rows = await res.json();
+
+    // Retention desk — show newest 10
+    const retBody = document.getElementById('retention-body');
+    document.getElementById('retention-count').textContent = rows.length + ' technicians';
+    if (rows.length === 0) {
+      retBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#94a3b8;font-style:italic;">No technicians yet</td></tr>';
+    } else {
+      retBody.innerHTML = rows.slice(0,10).map(r => `
+        <tr>
+          <td><strong>${r.full_name}</strong></td>
+          <td class="mono">${r.phone}</td>
+          <td>${r.skill_category}</td>
+          <td>${r.district}, ${r.province}</td>
+          <td class="mono">${r.created_at ? r.created_at.slice(0,10) : '—'}</td>
+        </tr>
+      `).join('');
+    }
+
+    // Top performers — show all in order of registration
+    const perfBody = document.getElementById('perf-body');
+    document.getElementById('perf-count').textContent = 'Top ' + Math.min(rows.length, 10);
+    if (rows.length === 0) {
+      perfBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#94a3b8;font-style:italic;">No technicians yet</td></tr>';
+    } else {
+      perfBody.innerHTML = rows.slice(0,10).map((r,i) => `
+        <tr>
+          <td class="mono" style="color:${i===0?'#f59e0b':'#94a3b8'};font-weight:700;">${String(i+1).padStart(2,'0')}</td>
+          <td><strong>${r.full_name}</strong></td>
+          <td>${r.skill_category}</td>
+          <td>${r.province}</td>
+          <td class="mono">${r.created_at ? r.created_at.slice(0,10) : '—'}</td>
+        </tr>
+      `).join('');
+    }
+
+    return rows;
+  } catch(e) {
+    ['retention-body','perf-body'].forEach(id => {
+      document.getElementById(id).innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#ef4444;">Failed to load</td></tr>';
+    });
+    return [];
+  }
+}
+
+// ── FETCH TRADE DISTRIBUTION ──
+async function loadTradeChart() {
+  try {
+    const res = await fetch('/admin/api/trade-distribution');
+    if (!res.ok) throw new Error();
+    const rows = await res.json();
+    const labels = rows.length ? rows.map(r => r.skill_category) : ['No data yet'];
+    const data   = rows.length ? rows.map(r => r.count) : [1];
+    const colors = ['#1a6ef5','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#ec4899','#f97316','#94a3b8','#14b8a6'];
+
+    if (tradeChart) tradeChart.destroy();
+    tradeChart = new Chart(document.getElementById('tradeChart'), {
+      type: 'pie',
+      data: { labels, datasets: [{ data, backgroundColor: colors.slice(0,labels.length), borderWidth:2, borderColor:'#fff' }] },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right', labels:{ boxWidth:10, padding:10, font:{size:10} } } } }
+    });
+  } catch(e) {}
+}
+
+// ── FETCH MONTHLY REGISTRATIONS ──
+async function loadDemoChart() {
+  try {
+    const res = await fetch('/admin/api/monthly-registrations');
+    if (!res.ok) throw new Error();
+    const rows = await res.json();
+
+    // Fill last 12 months
+    const now = new Date();
+    const monthLabels = [];
+    const counts = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = d.toISOString().slice(0,7);
+      monthLabels.push(d.toLocaleDateString('en', {month:'short', year:'2-digit'}));
+      const found = rows.find(r => r.month === key);
+      counts.push(found ? found.count : 0);
+    }
+
+    if (demoChart) demoChart.destroy();
+    demoChart = new Chart(document.getElementById('demoChart'), {
+      type: 'bar',
+      data: {
+        labels: monthLabels,
+        datasets: [{ label:'New Registrations', data: counts, backgroundColor:'#1a6ef5', borderRadius:4 }]
+      },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ x:{ grid:{ display:false } }, y:{ grid:{ color:'#f0f3f8' }, ticks:{ stepSize:1 } } } }
+    });
+  } catch(e) {}
+}
+
+// ── STATIC CHARTS (revenue trend & plan preference — dummy until subscription tracking added) ──
+function initStaticCharts() {
+  const months = ['Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul'];
+
+  if (revenueChart) revenueChart.destroy();
+  revenueChart = new Chart(document.getElementById('revenueChart'), {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: [
+        { label:'Client Unlocks (RWF)', data:[48000,62000,54000,78000,91000,84000,102000,118000,134000,127000,158000,194400], borderColor:'#1a6ef5', backgroundColor:'rgba(26,110,245,0.08)', tension:0.4, fill:true, pointRadius:3, borderWidth:2 },
+        { label:'Tech Subscriptions (RWF)', data:[210000,234000,198000,267000,312000,285000,321000,354000,378000,402000,438000,477600], borderColor:'#10b981', backgroundColor:'rgba(16,185,129,0.06)', tension:0.4, fill:true, pointRadius:3, borderWidth:2 }
+      ]
+    },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'top', labels:{ boxWidth:10, padding:16 } } }, scales:{ x:{ grid:{ color:'#f0f3f8' } }, y:{ grid:{ color:'#f0f3f8' }, ticks:{ callback: v => v>=1000?(v/1000)+'k':v } } } }
+  });
+
+  if (planChart) planChart.destroy();
+  planChart = new Chart(document.getElementById('planChart'), {
+    type: 'doughnut',
+    data: { labels:['1-Month Plan (3,000 RWF)','3-Month Plan (6,000 RWF)'], datasets:[{ data:[58,42], backgroundColor:['#1a6ef5','#10b981'], borderWidth:3, borderColor:'#fff', hoverOffset:8 }] },
+    options: { responsive:true, maintainAspectRatio:false, cutout:'62%', plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:14 } } } }
+  });
+}
+
+// ── LOAD ALL ──
+async function loadAll() {
+  await Promise.all([
+    loadMetrics(),
+    loadTransactions(),
+    loadTechnicians(),
+    loadTradeChart(),
+    loadDemoChart(),
+  ]);
+  initStaticCharts();
+}
+
+// ── LANGUAGE ──
+const T = {
+  en: { 'lbl-metrics':'Real-Time Metrics','lbl-revenue':'Total Revenue','lbl-techs':'Active Paid Technicians','lbl-unlocks':'Total Unlocks Completed','lbl-churn':'Active Churn Rate','lbl-trends':'Revenue & Demographic Trends','lbl-rev-chart':'Monthly Revenue Streams','lbl-rev-sub':'Client Unlock Revenue vs. Technician Subscription Revenue','lbl-demo-chart':'Demographic Onboarding','lbl-demo-sub':'Monthly new technician registrations','lbl-distribution':'Distribution & Plan Preferences','lbl-trade-chart':'Technician Distribution by Trade','lbl-plan-chart':'Subscription Plan Preferences','lbl-tables':'Live Data Tables','lbl-txn-table':'Live Transaction Ledger','lbl-retention-table':'Retention Alert Desk','lbl-perf-table':'Top Profile Performers','live-label':'Live','page-title':'Analytics Dashboard','th-time':'Timestamp','th-txn':'Txn ID / Code','th-phone':'Phone','th-amount':'Amount (RWF)','th-status':'Status','th-name':'Tech Name','th-phone2':'Phone Number','th-trade':'Trade','th-district':'District','th-joined':'Joined','th-pname':'Name','th-ptrade':'Trade','th-province':'Province','th-registered':'Registered','lbl-monthly':'Monthly' },
+  fr: { 'lbl-metrics':'Métriques en Temps Réel','lbl-revenue':'Revenu Total','lbl-techs':'Techniciens Abonnés Actifs','lbl-unlocks':'Déverrouillages Complétés','lbl-churn':'Taux de Désabonnement','lbl-trends':'Tendances Revenus & Démographie','lbl-rev-chart':'Flux de Revenus Mensuels','lbl-rev-sub':'Revenus Clients vs. Abonnements Techniciens','lbl-demo-chart':'Inscriptions Démographiques','lbl-demo-sub':'Nouvelles inscriptions mensuelles','lbl-distribution':'Distribution & Préférences de Plans','lbl-trade-chart':'Distribution des Techniciens par Métier','lbl-plan-chart':'Préférences de Plans d\'Abonnement','lbl-tables':'Tableaux de Données en Direct','lbl-txn-table':'Registre des Transactions','lbl-retention-table':'Bureau des Alertes de Rétention','lbl-perf-table':'Meilleurs Profils Performants','live-label':'En Direct','page-title':'Tableau de Bord Analytique','th-time':'Horodatage','th-txn':'ID Transaction','th-phone':'Téléphone','th-amount':'Montant (RWF)','th-status':'Statut','th-name':'Nom du Technicien','th-phone2':'Numéro de Téléphone','th-trade':'Métier','th-district':'District','th-joined':'Inscrit le','th-pname':'Nom','th-ptrade':'Métier','th-province':'Province','th-registered':'Inscrit le','lbl-monthly':'Mensuel' }
+};
+function setLang(lang, btn) {
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const t = T[lang];
+  for (const [id, text] of Object.entries(t)) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+}
+
+// ── INIT ──
+loadAll();
+// Auto-refresh every 60 seconds
+setInterval(loadAll, 60000);
+</script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}TechConnect - {{ t.nav_home }}{% endblock %}
+{% block content %}
+<div class="hero">
+    <img class="hero-slide active" data-i="0" src="https://images.pexels.com/photos/257736/pexels-photo-257736.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1" alt="Electrician">
+    <img class="hero-slide" data-i="1" src="https://images.pexels.com/photos/8005397/pexels-photo-8005397.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1" alt="Plumber">
+    <img class="hero-slide" data-i="2" src="https://images.pexels.com/photos/7499043/pexels-photo-7499043.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1" alt="Surveyor">
+    <img class="hero-slide" data-i="3" src="https://images.pexels.com/photos/1094770/pexels-photo-1094770.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1" alt="Carpenter">
+    <img class="hero-slide" data-i="4" src="https://images.pexels.com/photos/9875441/pexels-photo-9875441.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1" alt="Solar">
+    <img class="hero-slide" data-i="5" src="https://images.pexels.com/photos/3807517/pexels-photo-3807517.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1" alt="Mechanic">
+    <img class="hero-slide" data-i="6" src="https://images.pexels.com/photos/3811855/pexels-photo-3811855.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1" alt="Tailor">
+    <img class="hero-slide" data-i="7" src="https://images.pexels.com/photos/1181675/pexels-photo-1181675.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1" alt="IT">
+    <img class="hero-slide" data-i="8" src="https://images.pexels.com/photos/5583116/pexels-photo-5583116.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1" alt="Painter">
+    <img class="hero-slide" data-i="9" src="https://images.pexels.com/photos/4489732/pexels-photo-4489732.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1" alt="Motorcycle">
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+        <h1>{{ t.hero_title|safe }}</h1>
+        <p>{{ t.hero_subtitle }}</p>
+    </div>
+    <div class="hero-label" id="hero-label"></div>
+    <div class="hero-dots">{% for i in range(10) %}<span class="hero-dot {% if i==0 %}active{% endif %}" data-i="{{ i }}"></span>{% endfor %}</div>
+</div>
+
+<div class="home-section">
+    <div class="section-icon" style="background:#fff0f0;color:#c0392b;">⚠️</div>
+    <div class="section-label" style="color:#c0392b;">{{ t.problem_label }}</div>
+    <h2>{{ t.problem_title }}</h2>
+    <p>{{ t.problem_p1 }}</p><p>{{ t.problem_p2 }}</p><p>{{ t.problem_p3 }}</p>
+</div>
+
+<div class="home-section">
+    <div class="section-icon" style="background:#e8f4ff;color:var(--blue);">🎯</div>
+    <div class="section-label" style="color:var(--blue);">{{ t.vision_label }}</div>
+    <h2>{{ t.vision_title }}</h2>
+    <p>{{ t.vision_intro }}</p>
+    <div class="vision-cards">
+        <div class="vision-card"><span class="vision-icon">🎓</span><strong>{{ t.vision_1_title }}</strong><p>{{ t.vision_1_body }}</p></div>
+        <div class="vision-card"><span class="vision-icon">📍</span><strong>{{ t.vision_2_title }}</strong><p>{{ t.vision_2_body }}</p></div>
+        <div class="vision-card"><span class="vision-icon">✅</span><strong>{{ t.vision_3_title }}</strong><p>{{ t.vision_3_body }}</p></div>
+        <div class="vision-card"><span class="vision-icon">🌍</span><strong>{{ t.vision_4_title }}</strong><p>{{ t.vision_4_body }}</p></div>
+    </div>
+</div>
+
+<div class="home-section">
+    <div class="section-icon" style="background:#eaf6ec;color:var(--success);">⚙️</div>
+    <div class="section-label" style="color:var(--success);">{{ t.how_label }}</div>
+    <h2>{{ t.how_title }}</h2>
+    <div class="steps">
+        <div class="step"><div class="step-number">1</div><strong>{{ t.step1_title }}</strong><p>{{ t.step1_body }}</p></div>
+        <div class="step-arrow">→</div>
+        <div class="step"><div class="step-number">2</div><strong>{{ t.step2_title }}</strong><p>{{ t.step2_body }}</p></div>
+        <div class="step-arrow">→</div>
+        <div class="step"><div class="step-number">3</div><strong>{{ t.step3_title }}</strong><p>{{ t.step3_body }}</p></div>
+    </div>
+</div>
+
+<div class="counter-section">
+    <span class="counter-number">{{ technician_count }}</span>
+    <span>{{ t.counter_text }}</span>
+</div>
+
+{% if technician %}
+<div class="card" style="margin-top:16px;">
+    <p style="margin:0;">{{ t.welcome_back }}, <strong>{{ technician.full_name }}</strong>.</p>
+    <a class="btn" href="{{ url_for('my_profile') }}">{{ t.nav_profile }}</a>
+</div>
+{% endif %}
+
+<script>
+const LABELS={en:['Electrical Installation','Plumbing','Land Surveying','Carpentry & Joinery','Solar / Renewable Energy','Auto Mechanics','Tailoring / Fashion Design','Computer Repair & IT','Painting & Decoration','Motorcycle Mechanics'],fr:['Installation Électrique','Plomberie','Topographie','Menuiserie','Énergie Solaire','Mécanique Auto','Couture / Mode','Réparation Informatique','Peinture & Décoration','Mécanique Moto']};
+const lang="{{lang}}";
+let cur=0;
+const slides=document.querySelectorAll('.hero-slide'),dots=document.querySelectorAll('.hero-dot'),label=document.getElementById('hero-label');
+label.textContent=LABELS[lang][0];
+function show(i){slides.forEach(s=>s.classList.toggle('active',s.dataset.i===String(i)));dots.forEach(d=>d.classList.toggle('active',d.dataset.i===String(i)));label.textContent=LABELS[lang][i];cur=i;}
+setInterval(()=>{show((cur+1)%10);},3500);
+</script>
+{% endblock %}

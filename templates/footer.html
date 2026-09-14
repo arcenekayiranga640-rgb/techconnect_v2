@@ -1,0 +1,70 @@
+<footer style="background:#0F172A;color:#94a3b8;margin-top:48px;">
+  <div style="max-width:1100px;margin:0 auto;padding:48px 28px 0;">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:32px;padding-bottom:40px;border-bottom:1px solid rgba(255,255,255,0.08);">
+
+      <!-- Column 1: Brand -->
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <img src="{{ url_for('static', filename='images/logo.png') }}" alt="TechConnect" style="width:36px;height:36px;object-fit:contain;">
+          <span style="color:white;font-weight:700;font-size:1rem;">TechConnect</span>
+        </div>
+        <p style="font-size:0.82rem;line-height:1.7;margin:0 0 12px;">Rwanda's most trusted platform connecting verified technical graduates with clients who need their skills.</p>
+        <p style="font-size:0.8rem;margin:0;">📍 Kigali, Rwanda</p>
+      </div>
+
+      <!-- Column 2: Quick Links -->
+      <div>
+        <p style="color:white;font-weight:600;font-size:0.85rem;margin:0 0 16px;letter-spacing:0.5px;text-transform:uppercase;">Quick Links</p>
+        <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px;">
+          <li><a href="{{ url_for('home') }}" style="color:#94a3b8;text-decoration:none;font-size:0.83rem;">🏠 Home</a></li>
+          <li><a href="{{ url_for('list_technicians') }}" style="color:#94a3b8;text-decoration:none;font-size:0.83rem;">🔍 Find a Technician</a></li>
+          <li><a href="{{ url_for('register') }}" style="color:#94a3b8;text-decoration:none;font-size:0.83rem;">✍️ Sign Up as Technician</a></li>
+          <li><a href="{{ url_for('select_plan') }}" style="color:#94a3b8;text-decoration:none;font-size:0.83rem;">💳 Subscription Plans</a></li>
+          <li><a href="{{ url_for('pay') }}" style="color:#94a3b8;text-decoration:none;font-size:0.83rem;">🔓 Client Access Pass</a></li>
+        </ul>
+      </div>
+
+      <!-- Column 3: Contact -->
+      <div>
+        <p style="color:white;font-weight:600;font-size:0.85rem;margin:0 0 16px;letter-spacing:0.5px;text-transform:uppercase;">Contact & Support</p>
+        <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px;">
+          <li style="font-size:0.83rem;">📞 <a href="tel:+250794419258" style="color:#94a3b8;text-decoration:none;">+250 794 419 258</a></li>
+          <li style="font-size:0.83rem;">💬 <a href="https://wa.me/250794419258" target="_blank" style="color:#10B981;text-decoration:none;font-weight:600;">WhatsApp Us</a></li>
+          <li style="font-size:0.83rem;">✉️ <a href="mailto:support@techconnect.rw" style="color:#94a3b8;text-decoration:none;">support@techconnect.rw</a></li>
+          <li style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,0.05);border-radius:6px;border-left:3px solid #F59E0B;">
+            <strong style="color:#F59E0B;font-size:0.78rem;">Support Hours</strong><br>
+            <span style="color:#cbd5e1;font-size:0.78rem;">Mon – Fri, 8:00 AM – 5:00 PM CAT</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Column 4: Trust & Legal -->
+      <div>
+        <p style="color:white;font-weight:600;font-size:0.85rem;margin:0 0 16px;letter-spacing:0.5px;text-transform:uppercase;">Trust & Legal</p>
+        <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px;">
+          <li><a href="{{ url_for('verification_policy') }}" style="color:#94a3b8;text-decoration:none;font-size:0.83rem;">🎓 TVET Verification Policy</a></li>
+          <li><a href="{{ url_for('terms') }}" style="color:#94a3b8;text-decoration:none;font-size:0.83rem;">📄 Terms of Service</a></li>
+          <li><a href="{{ url_for('privacy') }}" style="color:#94a3b8;text-decoration:none;font-size:0.83rem;">🔒 Privacy Policy</a></li>
+          <li style="margin-top:8px;padding:8px 10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:6px;">
+            <span style="color:#10B981;font-size:0.78rem;font-weight:600;">✅ Verified Platform</span><br>
+            <span style="color:#64748b;font-size:0.75rem;">All technicians are certificate-verified before listing</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Bottom Bar -->
+    <div style="padding:20px 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <p style="margin:0;font-size:0.78rem;color:#475569;">© 2026 The Tech Connection. All rights reserved.</p>
+      <div style="display:flex;gap:16px;">
+        <a href="{{ url_for('privacy') }}" style="color:#475569;text-decoration:none;font-size:0.75rem;">Privacy</a>
+        <a href="{{ url_for('terms') }}" style="color:#475569;text-decoration:none;font-size:0.75rem;">Terms</a>
+        <a href="{{ url_for('cookie_policy') }}" style="color:#475569;text-decoration:none;font-size:0.75rem;">Cookies</a>
+      </div>
+    </div>
+  </div>
+</footer>
+<style>
+@media(max-width:768px){footer>div>div:first-child{grid-template-columns:1fr 1fr!important;}}
+@media(max-width:480px){footer>div>div:first-child{grid-template-columns:1fr!important;}}
+</style>

@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Choose Your Plan — TechConnect{% endblock %}
+{% block content %}
+<div style="max-width:860px;margin:0 auto;">
+
+  <!-- Header -->
+  <div style="text-align:center;margin-bottom:36px;">
+    <div style="display:inline-block;background:#d1fae5;color:#065f46;font-size:0.78rem;font-weight:700;padding:4px 14px;border-radius:20px;letter-spacing:0.5px;margin-bottom:12px;">
+      🎉 7-DAY FREE TRIAL ACTIVATED
+    </div>
+    <h1 style="color:#0F172A;font-size:1.8rem;margin:0 0 10px;">Choose Your Subscription Plan</h1>
+    <p style="color:#64748b;font-size:0.95rem;max-width:480px;margin:0 auto;line-height:1.6;">
+      Your profile is live! Select a plan to keep it visible to clients after your free trial ends.
+    </p>
+  </div>
+
+  <!-- Free Trial Banner -->
+  <div style="background:linear-gradient(135deg,#0F172A,#1e3a5f);border-radius:12px;padding:20px 28px;margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div>
+      <p style="color:#F59E0B;font-weight:700;font-size:0.9rem;margin:0 0 4px;">⏰ Your 7-Day Free Trial is Now Active</p>
+      <p style="color:#94a3b8;font-size:0.82rem;margin:0;">Your profile is visible to all clients for the next 7 days — completely free. Subscribe before it ends to stay listed.</p>
+    </div>
+    <div style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);border-radius:8px;padding:10px 18px;text-align:center;flex-shrink:0;">
+      <p style="color:#F59E0B;font-weight:700;font-size:1.1rem;margin:0;">7 Days</p>
+      <p style="color:#94a3b8;font-size:0.72rem;margin:0;">FREE</p>
+    </div>
+  </div>
+
+  <!-- Plan Cards -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:32px;">
+
+    <!-- 1-Month Plan -->
+    <div style="background:white;border-radius:16px;border:2px solid #e2e8f0;padding:32px 28px;position:relative;">
+      <div style="margin-bottom:20px;">
+        <p style="color:#64748b;font-size:0.78rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin:0 0 8px;">Starter</p>
+        <h2 style="color:#0F172A;font-size:1.4rem;margin:0 0 6px;">1-Month Plan</h2>
+        <div style="display:inline-block;background:#fef3c7;color:#92400e;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:12px;">25% OFF</div>
+      </div>
+      <div style="margin-bottom:24px;">
+        <div style="display:flex;align-items:baseline;gap:8px;">
+          <span style="font-size:2rem;font-weight:700;color:#0F172A;">3,000</span>
+          <span style="color:#64748b;font-size:0.85rem;">RWF / month</span>
+        </div>
+        <div style="color:#94a3b8;font-size:0.78rem;margin-top:4px;">
+          <s>Original: 4,000 RWF</s>
+          <span style="color:#10B981;font-weight:600;margin-left:8px;">Save 1,000 RWF</span>
+        </div>
+      </div>
+      <ul style="list-style:none;padding:0;margin:0 0 28px;display:flex;flex-direction:column;gap:10px;">
+        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;font-weight:700;">✓</span> Profile visible for 30 days</li>
+        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;font-weight:700;">✓</span> Searchable by all clients</li>
+        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;font-weight:700;">✓</span> Contact details visible to paying clients</li>
+        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;font-weight:700;">✓</span> 7-day free trial included</li>
+      </ul>
+      <a href="{{ url_for('pay') }}" style="display:block;text-align:center;background:#2563EB;color:white;padding:13px;border-radius:8px;font-weight:600;font-size:0.9rem;text-decoration:none;">
+        Start with 7-Day Free Trial
+      </a>
+      <p style="text-align:center;color:#94a3b8;font-size:0.72rem;margin:8px 0 0;">No charge during trial. Pay 3,000 RWF to continue.</p>
+    </div>
+
+    <!-- 3-Month Plan -->
+    <div style="background:white;border-radius:16px;border:2px solid #2563EB;padding:32px 28px;position:relative;box-shadow:0 8px 24px rgba(37,99,235,0.12);">
+      <div style="position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:#2563EB;color:white;font-size:0.72rem;font-weight:700;padding:5px 16px;border-radius:20px;white-space:nowrap;">
+        ⭐ BEST VALUE
+      </div>
+      <div style="margin-bottom:20px;margin-top:8px;">
+        <p style="color:#2563EB;font-size:0.78rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin:0 0 8px;">Most Popular</p>
+        <h2 style="color:#0F172A;font-size:1.4rem;margin:0 0 6px;">3-Month Plan</h2>
+        <div style="display:inline-block;background:#d1fae5;color:#065f46;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:12px;">41.6% OFF</div>
+      </div>
+      <div style="margin-bottom:24px;">
+        <div style="display:flex;align-items:baseline;gap:8px;">
+          <span style="font-size:2rem;font-weight:700;color:#0F172A;">7,000</span>
+          <span style="color:#64748b;font-size:0.85rem;">RWF / 3 months</span>
+        </div>
+        <div style="color:#94a3b8;font-size:0.78rem;margin-top:4px;">
+          <s>Original: 12,000 RWF</s>
+          <span style="color:#10B981;font-weight:600;margin-left:8px;">Save 5,000 RWF</span>
+        </div>
+        <div style="color:#2563EB;font-size:0.78rem;margin-top:2px;font-weight:500;">≈ 2,333 RWF/month</div>
+      </div>
+      <ul style="list-style:none;padding:0;margin:0 0 28px;display:flex;flex-direction:column;gap:10px;">
+        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;font-weight:700;">✓</span> Profile visible for 90 days</li>
+        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;font-weight:700;">✓</span> Searchable by all clients</li>
+        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;font-weight:700;">✓</span> Contact details visible to paying clients</li>
+        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;font-weight:700;">✓</span> 7-day free trial included</li>
+        <li style="font-size:0.84rem;color:#10B981;display:flex;align-items:center;gap:8px;font-weight:600;"><span style="font-weight:700;">✓</span> Priority listing in search results</li>
+        <li style="font-size:0.84rem;color:#10B981;display:flex;align-items:center;gap:8px;font-weight:600;"><span style="font-weight:700;">✓</span> Maximum savings — best deal</li>
+      </ul>
+      <a href="{{ url_for('pay') }}" style="display:block;text-align:center;background:#2563EB;color:white;padding:13px;border-radius:8px;font-weight:600;font-size:0.9rem;text-decoration:none;">
+        Start with 7-Day Free Trial
+      </a>
+      <p style="text-align:center;color:#94a3b8;font-size:0.72rem;margin:8px 0 0;">No charge during trial. Pay 7,000 RWF to continue.</p>
+    </div>
+  </div>
+
+  <!-- Client Pass -->
+  <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:20px 28px;margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;">
+    <div>
+      <p style="color:#92400e;font-weight:700;font-size:0.9rem;margin:0 0 4px;">👥 Are you a client looking for a technician?</p>
+      <p style="color:#78350f;font-size:0.82rem;margin:0;">Pay 200 RWF for 24-hour access to all technician contacts across every trade and location.</p>
+    </div>
+    <a href="{{ url_for('pay') }}" style="background:#F59E0B;color:white;padding:10px 20px;border-radius:8px;font-weight:600;font-size:0.85rem;text-decoration:none;white-space:nowrap;">
+      Get 24h Access — 200 RWF
+    </a>
+  </div>
+
+  <p style="text-align:center;color:#94a3b8;font-size:0.82rem;">
+    Want to explore first?
+    <a href="{{ url_for('list_technicians') }}" style="color:#2563EB;font-weight:600;text-decoration:none;">Browse technicians</a>
+    or <a href="{{ url_for('home') }}" style="color:#2563EB;font-weight:600;text-decoration:none;">go to homepage</a>.
+  </p>
+</div>
+<style>
+@media(max-width:640px){
+  div[style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important;}
+}
+</style>
+{% endblock %}

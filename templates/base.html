@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}TechConnect{% endblock %}</title>
+    <style>
+        :root { --navy:#0d1b36; --navy-light:#1a2d52; --blue:#1a6ef5; --blue-light:#4da6ff; --blue-dark:#0d4db5; --bg:#f0f4f9; --text:#1c1c1c; --error:#c0392b; --success:#1e7e34; }
+        * { box-sizing:border-box; }
+        body { margin:0; font-family:'Segoe UI',Arial,sans-serif; background:var(--bg); color:var(--text); }
+        header { background:#0F172A; padding:14px 28px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 8px rgba(0,0,0,0.3); position:relative; z-index:100; }
+        .nav-cta-btn { background:#2563EB; color:white; border:none; padding:8px 16px; border-radius:8px; font-size:0.82rem; font-weight:700; cursor:pointer; text-decoration:none; transition:background 0.2s; white-space:nowrap; display:inline-flex; align-items:center; gap:6px; margin-right:4px; }
+        .nav-cta-btn:hover { background:#1d4ed8; color:white; }
+        .brand { font-size:1.2em; font-weight:700; color:white; letter-spacing:0.5px; }
+        .lang-switcher { display:flex; align-items:center; gap:6px; margin-right:12px; }
+        .lang-switcher a { font-size:0.82em; font-weight:700; padding:3px 8px; border-radius:4px; text-decoration:none; color:rgba(255,255,255,0.6); transition:all 0.2s; }
+        .lang-switcher a.active { background:var(--blue); color:white; }
+        .lang-switcher a:hover { color:white; }
+        .lang-divider { color:rgba(255,255,255,0.3); font-size:0.8em; }
+        .hamburger-btn { background:none; border:none; cursor:pointer; padding:6px; display:flex; flex-direction:column; gap:5px; margin-top:0; }
+        .hamburger-btn span { display:block; width:26px; height:3px; background:white; border-radius:3px; transition:background 0.2s; }
+        .hamburger-btn:hover span { background:var(--blue-light); }
+        .hamburger-menu { position:absolute; top:100%; right:28px; background:white; border-radius:10px; min-width:230px; box-shadow:0 8px 24px rgba(13,27,54,0.18); overflow:hidden; display:none; z-index:200; }
+        .hamburger-menu.open { display:block; }
+        .hamburger-menu a { display:flex; align-items:center; gap:12px; padding:14px 20px; color:var(--navy); font-size:0.95em; font-weight:600; border-bottom:1px solid #eef2f7; text-decoration:none; transition:background 0.15s; }
+        .hamburger-menu a:last-child { border-bottom:none; }
+        .hamburger-menu a:hover { background:#f0f4f9; color:var(--blue); }
+        .menu-icon { width:32px; height:32px; border-radius:8px; background:#eef2f7; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:15px; }
+        main { max-width:860px; margin:30px auto; padding:0 20px 60px; }
+        .card { background:white; border-radius:10px; padding:30px; box-shadow:0 2px 10px rgba(0,0,0,0.07); }
+        h1 { color:var(--navy); margin-top:0; }
+        label { display:block; margin-top:16px; margin-bottom:6px; font-weight:600; color:var(--navy); }
+        input,select,textarea { width:100%; padding:10px; border:1px solid #c5d0e0; border-radius:6px; font-size:1em; font-family:inherit; transition:border-color 0.2s; }
+        input:focus,select:focus,textarea:focus { outline:none; border-color:var(--blue); }
+        textarea { resize:vertical; }
+        .hint { font-size:0.85em; color:#666; margin-top:4px; }
+        button,.btn { display:inline-block; margin-top:24px; background:var(--blue); color:white; border:none; padding:12px 24px; border-radius:6px; font-size:1em; font-weight:600; cursor:pointer; text-decoration:none; transition:background 0.2s; }
+        button:hover,.btn:hover { background:var(--blue-dark); }
+        .btn-secondary { background:#5f7190; }
+        .btn-secondary:hover { background:#4a596e; }
+        .btn-danger { background:var(--error); }
+        .btn-danger:hover { background:#962d20; }
+        .flash { padding:12px 16px; border-radius:6px; margin-bottom:10px; font-weight:500; }
+        .flash.error { background:#fdecea; color:var(--error); border:1px solid var(--error); }
+        .flash.success { background:#eaf6ec; color:var(--success); border:1px solid var(--success); }
+        .row { display:flex; gap:16px; }
+        .row>div { flex:1; }
+        .tech-card { border:1px solid #dce6f0; border-radius:8px; padding:16px 20px; margin-bottom:14px; border-left:4px solid var(--blue); display:flex; gap:16px; background:white; }
+        .tech-card img.avatar { width:64px; height:64px; border-radius:50%; object-fit:cover; flex-shrink:0; border:2px solid var(--blue-light); }
+        .avatar-placeholder { width:64px; height:64px; border-radius:50%; background:var(--navy); color:var(--blue-light); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1.2em; flex-shrink:0; }
+        .tech-card h3 { margin:0 0 4px; color:var(--navy); }
+        .tag { display:inline-block; background:var(--blue); color:white; font-size:0.78em; padding:3px 10px; border-radius:12px; margin-bottom:8px; }
+        .verified-tag { display:inline-block; background:#eaf6ec; color:var(--success); font-size:0.78em; padding:3px 10px; border-radius:12px; margin-bottom:8px; margin-left:6px; }
+        .meta { font-size:0.92em; color:#444; margin:2px 0; }
+        .filter-bar { display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
+        .empty-state { color:#777; text-align:center; padding:30px 0; }
+        .profile-photo-large { width:110px; height:110px; border-radius:50%; object-fit:cover; border:3px solid var(--blue); margin-bottom:10px; }
+        a.file-link { color:var(--blue); font-weight:600; }
+        .hero { position:relative; height:480px; overflow:hidden; background:var(--navy); border-radius:10px; }
+        .hero-slide { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity 1s ease-in-out; }
+        .hero-slide.active { opacity:1; }
+        .hero-overlay { position:absolute; inset:0; background:rgba(13,27,54,0.55); }
+        .hero-content { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:0 30px; }
+        .hero-content h1 { color:white; font-size:2.2em; margin:0 0 12px; text-shadow:0 2px 8px rgba(0,0,0,0.3); }
+        .hero-content p { color:#dde4ef; font-size:1.05em; margin:0; max-width:520px; line-height:1.6; }
+        .hero-label { position:absolute; bottom:42px; left:50%; transform:translateX(-50%); background:rgba(26,110,245,0.88); color:white; font-size:0.85em; font-weight:600; padding:4px 18px; border-radius:20px; white-space:nowrap; }
+        .hero-dots { position:absolute; bottom:14px; left:0; right:0; display:flex; justify-content:center; gap:6px; }
+        .hero-dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,0.35); }
+        .hero-dot.active { background:var(--blue-light); }
+        .home-section { background:white; border-radius:10px; padding:32px 28px; margin-top:20px; }
+        .section-icon { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px; margin-bottom:10px; }
+        .section-label { font-size:0.78em; font-weight:700; letter-spacing:0.6px; text-transform:uppercase; margin-bottom:8px; }
+        .home-section h2 { color:var(--navy); font-size:1.25em; margin:0 0 14px; }
+        .home-section p { color:#444; font-size:0.93em; line-height:1.7; margin:0 0 10px; }
+        .vision-cards { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-top:18px; }
+        .vision-card { background:#f4f7fb; border-radius:8px; padding:16px; border-left:3px solid var(--blue); }
+        .vision-icon { font-size:22px; display:block; margin-bottom:6px; }
+        .vision-card strong { color:var(--navy); font-size:0.95em; display:block; margin-bottom:6px; }
+        .vision-card p { color:#555; font-size:0.88em; line-height:1.5; margin:0; }
+        .steps { display:flex; align-items:flex-start; gap:12px; margin-top:18px; flex-wrap:wrap; }
+        .step { flex:1; min-width:180px; background:#f4f7fb; border-radius:8px; padding:18px 16px; text-align:center; }
+        .step-number { width:36px; height:36px; background:var(--blue); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; margin:0 auto 10px; }
+        .step strong { color:var(--navy); font-size:0.95em; display:block; margin-bottom:8px; }
+        .step p { color:#555; font-size:0.87em; line-height:1.5; margin:0; }
+        .step-arrow { font-size:1.5em; color:var(--blue); align-self:center; flex-shrink:0; }
+        .counter-section { background:var(--navy); border-radius:10px; padding:18px 28px; margin-top:16px; display:flex; align-items:center; justify-content:center; gap:10px; color:white; font-size:0.95em; }
+        .counter-number { font-weight:700; font-size:1.4em; color:var(--blue-light); }
+        @media(max-width:560px) { .vision-cards{grid-template-columns:1fr;} .step-arrow{display:none;} .hero-content h1{font-size:1.5em;} }
+    </style>
+</head>
+<body>
+    <header>
+        <a href="{{ url_for('home') }}" style="display:flex;align-items:center;gap:10px;text-decoration:none;">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="TechConnect logo" style="width:42px;height:42px;object-fit:contain;">
+            <span class="brand">TechConnect</span>
+        </a>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <div class="lang-switcher">
+                <a href="{{ url_for('set_lang', lang='en') }}" class="{% if lang == 'en' %}active{% endif %}">🇬🇧 EN</a>
+                <span class="lang-divider">|</span>
+                <a href="{{ url_for('set_lang', lang='fr') }}" class="{% if lang == 'fr' %}active{% endif %}">🇫🇷 FR</a>
+            </div>
+            {% if not technician %}
+            <a href="{{ url_for('register') }}" class="nav-cta-btn">✍️ {{ t.nav_signup }}</a>
+            {% endif %}
+            <button class="hamburger-btn" id="hamburgerBtn" aria-label="Open menu" aria-expanded="false">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+        <div class="hamburger-menu" id="hamburgerMenu">
+            <a href="{{ url_for('home') }}"><span class="menu-icon">🏠</span> {{ t.nav_home }}</a>
+            <a href="{{ url_for('list_technicians') }}"><span class="menu-icon">🔍</span> {{ t.nav_find }}</a>
+            <a href="{{ url_for('select_plan') }}"><span class="menu-icon">💳</span> {{ t.nav_plans }}</a>
+            {% if technician %}
+                <a href="{{ url_for('my_profile') }}"><span class="menu-icon">👤</span> {{ t.nav_profile }}</a>
+                <a href="{{ url_for('logout') }}"><span class="menu-icon">🚪</span> {{ t.nav_logout }}</a>
+            {% else %}
+                <a href="{{ url_for('register') }}"><span class="menu-icon">✍️</span> {{ t.nav_signup }}</a>
+                <a href="{{ url_for('login') }}"><span class="menu-icon">🔑</span> {{ t.nav_login }}</a>
+            {% endif %}
+        </div>
+    </header>
+    <main>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}{% for category, message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}{% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+    {% include 'footer.html' %}
+    <script>
+        const btn = document.getElementById('hamburgerBtn');
+        const menu = document.getElementById('hamburgerMenu');
+        btn.addEventListener('click', (e) => { e.stopPropagation(); const o=menu.classList.toggle('open'); btn.setAttribute('aria-expanded',o); });
+        document.addEventListener('click', () => { menu.classList.remove('open'); btn.setAttribute('aria-expanded',false); });
+        menu.addEventListener('click', (e) => e.stopPropagation());
+    </script>
+</body>
+</html>

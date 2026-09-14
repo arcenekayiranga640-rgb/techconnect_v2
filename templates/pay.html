@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ t.pay_title }} - TechConnect{% endblock %}
+{% block content %}
+<div class="card">
+    <h1>{{ t.pay_title }}</h1>
+    <p>{{ t.pay_intro|safe|replace('{price}', price|string)|replace('{hours}', hours|string) }}</p>
+    <div class="pay-box">
+        <p class="pay-title">{{ t.pay_step1|replace('{price}', price|string) }}</p>
+        <div class="pay-method"><span class="pay-icon">📱</span><div><strong>{{ t.mtn_title }}</strong><p>{{ t.mtn_body|safe }}</p></div></div>
+        <div class="pay-method"><span class="pay-icon">📲</span><div><strong>{{ t.airtel_title }}</strong><p>{{ t.airtel_body|safe|replace('{number}', payment_number)|replace('{price}', price|string) }}</p></div></div>
+        <div class="pay-method"><span class="pay-icon">🏦</span><div><strong>{{ t.bank_title }}</strong><p>{{ t.bank_body|safe|replace('{number}', payment_number)|replace('{price}', price|string) }}</p></div></div>
+        <p style="margin-top:14px;font-size:0.88em;color:#555;">{{ t.sms_hint }}</p>
+    </div>
+    <div class="pay-form-section">
+        <p class="pay-title">{{ t.pay_step2 }}</p>
+        <form method="POST" action="{{ url_for('pay') }}">
+            <label for="phone">{{ t.phone_label }}</label>
+            <input type="tel" id="phone" name="phone" placeholder="{{ t.phone_placeholder }}" value="{{ form_data.phone or '' }}" required>
+            <label for="code">{{ t.code_label }}</label>
+            <input type="text" id="code" name="code" placeholder="{{ t.code_placeholder }}" value="{{ form_data.code or '' }}" required style="text-transform:uppercase;">
+            <p class="hint">{{ t.code_hint }}</p>
+            <button type="submit">{{ t.confirm_btn }}</button>
+        </form>
+        <p class="hint" style="margin-top:16px;">{{ t.access_hint|safe|replace('{hours}', hours|string) }}</p>
+    </div>
+</div>
+<style>
+.pay-box{background:#f0f4f9;border-radius:10px;padding:20px;margin:20px 0;border-left:4px solid var(--blue);}
+.pay-title{font-weight:700;color:var(--navy);font-size:0.95em;margin:0 0 14px;}
+.pay-method{display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px solid #dde4f0;}
+.pay-method:last-of-type{border-bottom:none;}
+.pay-icon{font-size:24px;flex-shrink:0;margin-top:2px;}
+.pay-method strong{color:var(--navy);display:block;margin-bottom:4px;}
+.pay-method p{margin:0;font-size:0.88em;color:#444;line-height:1.5;}
+.pay-method code{background:#e0e8f8;padding:2px 6px;border-radius:4px;font-family:monospace;font-size:0.95em;color:var(--blue-dark);}
+.pay-form-section{background:white;border:1px solid #dce6f0;border-radius:10px;padding:20px;margin-top:6px;}
+</style>
+{% endblock %}

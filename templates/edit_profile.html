@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}{{ t.edit_btn }} - TechConnect{% endblock %}
+{% block content %}
+<div class="card">
+    <h1>{{ t.edit_btn }}</h1>
+    <form method="POST" action="{{ url_for('edit_profile') }}" enctype="multipart/form-data">
+        <label for="full_name">{{ t.fullname_label }}</label>
+        <input type="text" id="full_name" name="full_name" value="{{ technician.full_name }}" required>
+        <label for="qualification_type">{{ t.qual_type_label }}</label>
+        <select id="qualification_type" name="qualification_type" required>
+            <option value="Advanced TVET Certificate V (L5)" {% if technician.qualification_type=='Advanced TVET Certificate V (L5)' %}selected{% endif %}>
+                🎓 Advanced TVET Certificate V (L5) — Rwanda Technical Certificate of Education
+            </option>
+            <option value="Professional Certificate" {% if technician.qualification_type=='Professional Certificate' %}selected{% endif %}>
+                📜 Professional Certificate — Industry / Vocational Credential
+            </option>
+            <option value="Degree / Advanced Diploma (L6+)" {% if technician.qualification_type=='Degree / Advanced Diploma (L6+)' %}selected{% endif %}>
+                🏛️ Degree / Advanced Diploma (L6+) — University / Higher Education
+            </option>
+        </select>
+        <div id="degree_level_wrapper" style="display:none;">
+            <label for="degree_level">{{ t.degree_level_label }}</label>
+            <select id="degree_level" name="degree_level">
+                <option value="">{{ t.select_level }}</option>
+                {% for level in degree_levels %}
+                    <option value="{{ level }}" {% if technician.degree_level==level %}selected{% endif %}>{{ level }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <label for="degree">{{ t.field_label }}</label>
+        <input type="text" id="degree" name="degree" value="{{ technician.degree }}" required>
+        <label for="skill_category">{{ t.skill_label }}</label>
+        <select id="skill_category" name="skill_category" required>
+            {% for category in skill_categories %}
+                <option value="{{ category }}" {% if technician.skill_category==category %}selected{% endif %}>{{ category }}</option>
+            {% endfor %}
+        </select>
+        <div class="row">
+            <div>
+                <label for="phone">{{ t.phone_label_reg }}</label>
+                <input type="tel" id="phone" name="phone" value="{{ technician.phone }}" required>
+            </div>
+            <div>
+                <label for="whatsapp">{{ t.whatsapp_label }}</label>
+                <input type="tel" id="whatsapp" name="whatsapp" value="{{ technician.whatsapp or '' }}">
+            </div>
+        </div>
+        <p class="hint">Email cannot be changed here.</p>
+        <label for="province">Province *</label>
+        <select id="province" name="province" required>
+            <option value="">--</option>
+            {% for prov in provinces %}
+                <option value="{{ prov }}" {% if technician.province==prov %}selected{% endif %}>{{ prov }}</option>
+            {% endfor %}
+        </select>
+        <label for="district">District *</label>
+        <select id="district" name="district" required>
+            <option value="{{ technician.district }}" selected>{{ technician.district }}</option>
+        </select>
+        <label for="sector">Sector *</label>
+        <select id="sector" name="sector" required>
+            <option value="{{ technician.sector }}" selected>{{ technician.sector }}</option>
+        </select>
+        <label for="bio">{{ t.bio_label }}</label>
+        <textarea id="bio" name="bio" rows="3">{{ technician.bio or '' }}</textarea>
+        {% if technician.photo_filename %}
+            <p class="meta">Current photo:</p>
+            <img class="profile-photo-large" src="{{ url_for('static', filename='uploads/photos/' + technician.photo_filename) }}" alt="Photo">
+        {% endif %}
+        <label for="photo">{{ t.photo_label }}</label>
+        <input type="file" id="photo" name="photo" accept=".png,.jpg,.jpeg,.webp">
+        <p class="hint">Leave empty to keep current photo.</p>
+        {% if technician.certificate_filename %}
+            <p class="meta">{{ t.cert_label }} <a class="file-link" href="{{ url_for('static', filename='uploads/certificates/' + technician.certificate_filename) }}" target="_blank">{{ t.view_file }}</a></p>
+            <label for="certificate">Replace Certificate</label>
+            <input type="file" id="certificate" name="certificate" accept=".pdf,.png,.jpg,.jpeg">
+            <p class="hint">Leave empty to keep current certificate.</p>
+        {% else %}
+            <p class="hint" style="color:var(--error);font-weight:600;">No certificate on file — please upload one.</p>
+            <label for="certificate">{{ t.cert_upload_label }}</label>
+            <input type="file" id="certificate" name="certificate" accept=".pdf,.png,.jpg,.jpeg" required>
+        {% endif %}
+        <label for="certificate_number">{{ t.cert_number_label }}</label>
+        <input type="text" id="certificate_number" name="certificate_number" value="{{ technician.certificate_number or '' }}">
+        <button type="submit">Save Changes</button>
+        <a class="btn btn-secondary" href="{{ url_for('my_profile') }}" style="margin-left:10px;">Cancel</a>
+    </form>
+</div>
+<script>
+const fn=document.getElementById('full_name');
+fn.addEventListener('input',()=>{const p=fn.selectionStart,c=fn.value.replace(/(^|\s)([a-z])/g,(m,b,l)=>b+l.toUpperCase());if(c!==fn.value){fn.value=c;fn.setSelectionRange(p,p);}});
+const qt=document.getElementById('qualification_type'),lw=document.getElementById('degree_level_wrapper'),ls=document.getElementById('degree_level');
+function updL(){if(qt.value){lw.style.display='block';ls.required=true;}else{lw.style.display='none';ls.required=false;}}
+qt.addEventListener('change',updL);
+const prov=document.getElementById('province'),dist=document.getElementById('district'),sect=document.getElementById('sector');
+const CD="{{ technician.district }}",CS="{{ technician.sector }}";
+async function loadDist(p,pre){const r=await fetch('/api/districts?province='+encodeURIComponent(p));const d=await r.json();dist.innerHTML=d.map(x=>`<option value="${x}" ${x===pre?'selected':''}>${x}</option>`).join('');}
+async function loadSect(p,di,pre){const r=await fetch('/api/sectors?province='+encodeURIComponent(p)+'&district='+encodeURIComponent(di));const s=await r.json();sect.innerHTML=s.map(x=>`<option value="${x}" ${x===pre?'selected':''}>${x}</option>`).join('');}
+prov.addEventListener('change',async()=>{await loadDist(prov.value,'');sect.innerHTML='<option>Select district first</option>';});
+dist.addEventListener('change',()=>loadSect(prov.value,dist.value,''));
+window.addEventListener('DOMContentLoaded',async()=>{updL();await loadDist(prov.value,CD);await loadSect(prov.value,CD,CS);});
+</script>
+{% endblock %}
