@@ -58,7 +58,7 @@ except ImportError:
 
 # QR code scanning for NESA/RTB certificate verification
 try:
-    import cv2 as decode_qr
+    from pyzbar.pyzbar import decode as decode_qr
     QR_AVAILABLE = True
 except ImportError:
     QR_AVAILABLE = False
@@ -394,7 +394,7 @@ def verify_technician_certificate(file_path, form_name, form_trade, form_cert_co
             if img_for_qr:
                 decoded_objs = decode_qr(img_for_qr)
                 if decoded_objs:
-                    qr_url = decoded_objs[0].data.scan_qr_code("utf-8").strip()
+                    qr_url = decoded_objs[0].data.decode("utf-8").strip()
                     print(f"[QR] Found QR payload: {qr_url}", flush=True)
         except Exception as e:
             print(f"[QR] QR scan failed (non-fatal, falling back to OCR): {e}", flush=True)
@@ -629,181 +629,251 @@ def api_sectors():
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
+    """Step 1 — Personal Contact Information."""
     if request.method == "POST":
         full_name = capitalize_name(request.form.get("full_name", "").strip())
-        qualification_type = request.form.get("qualification_type", "").strip()
-        degree_level = request.form.get("degree_level", "").strip()
-        degree = request.form.get("degree", "").strip()
-        skill_category = request.form.get("skill_category", "").strip()
-        phone = request.form.get("phone", "").strip()
-        whatsapp = request.form.get("whatsapp", "").strip()
-        email = request.form.get("email", "").strip().lower()
-        password = request.form.get("password", "")
-        confirm_password = request.form.get("confirm_password", "")
-        province = request.form.get("province", "").strip()
-        district = request.form.get("district", "").strip()
-        sector = request.form.get("sector", "").strip()
-        bio = request.form.get("bio", "").strip()
-        certificate_number = request.form.get("certificate_number", "").strip()
+        phone     = request.form.get("phone", "").strip()
+        whatsapp  = request.form.get("whatsapp", "").strip()
+        email     = request.form.get("email", "").strip().lower()
 
         errors = []
         if not full_name:
             errors.append("Full name is required.")
-        if qualification_type not in ("Advanced TVET Certificate V (L5)", "Professional Certificate", "Degree / Advanced Diploma (L6+)"):
-            errors.append("Please choose a qualification type: Advanced TVET Certificate V (L5), Professional Certificate, or Degree / Advanced Diploma (L6+).")
-        if degree_level and degree_level not in DEGREE_LEVELS:
-            errors.append("Please choose your degree level.")
-        if qualification_type in ("Advanced TVET Certificate V (L5)", "Professional Certificate"):
-            degree_level = ""  # certificates don't carry a level
-        if not degree:
-            errors.append("Field of study / specialization is required.")
-        if not skill_category:
-            errors.append("Please choose a skill category.")
-        if degree and skill_category and not fields_relate_to_each_other(skill_category, degree):
-            errors.append(
-                f"\"{degree}\" doesn't seem related to the Skill Category \"{skill_category}\" you selected. "
-                "Please make sure your Field of Study and Skill Category describe the same trade."
-            )
         if not phone:
             errors.append("Phone number is required.")
         if not email:
-            errors.append("Email is required (used to log in later).")
-        if not is_strong_password(password):
-            errors.append("Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a symbol.")
-        if password != confirm_password:
-            errors.append("Passwords do not match.")
-        if not province:
-            errors.append("Please choose a province.")
-        if not district:
-            errors.append("Please choose a district.")
-        if not sector:
-            errors.append("Please choose a sector.")
-        certificate_file = request.files.get("certificate")
+            errors.append("Email address is required.")
+        if email:
+            conn = get_db_connection()
+            existing = conn.execute("SELECT id FROM technicians WHERE email = ?", (email,)).fetchone()
+            conn.close()
+            if existing:
+                errors.append("An account with that email already exists. Try logging in instead.")
+
+        if errors:
+            for e in errors:
+                flash(e, "error")
+            return render_template("register_step1.html", t=get_t(), lang=get_lang(), technician=current_technician())
+
+        session["reg_full_name"] = full_name
+        session["reg_phone"]     = phone
+        session["reg_whatsapp"]  = whatsapp
+        session["reg_email"]     = email
+        return redirect(url_for("register_step2"))
+
+    return render_template("register_step1.html", t=get_t(), lang=get_lang(), technician=current_technician())
+
+
+@app.route("/register/step2", methods=["GET", "POST"])
+def register_step2():
+    """Step 2 — Professional Qualifications & Certificate Upload."""
+    if not session.get("reg_email"):
+        return redirect(url_for("register"))
+
+    if request.method == "POST":
+        qualification_type = request.form.get("qualification_type", "").strip()
+        degree_level       = request.form.get("degree_level", "").strip()
+        degree             = request.form.get("degree", "").strip().upper()
+        skill_category     = request.form.get("skill_category", "").strip()
+        certificate_number = request.form.get("certificate_number", "").strip()
+        bio                = request.form.get("bio", "").strip()
+
+        VALID_QUAL_TYPES = [
+            "Advanced TVET Certificate V (L5)",
+            "Professional Certificate",
+            "Degree / Advanced Diploma (L6+)",
+        ]
+        errors = []
+        if qualification_type not in VALID_QUAL_TYPES:
+            errors.append("Please choose a valid qualification type.")
+        if not degree:
+            errors.append("Field of Study / Specialization is required.")
+        if not skill_category:
+            errors.append("Please choose a Skill Category.")
+        if degree and skill_category and not fields_relate_to_each_other(skill_category, degree):
+            errors.append(
+                f"\"{degree}\" doesn't seem related to \"{skill_category}\". "
+                "Please make sure your Field of Study and Skill Category describe the same trade."
+            )
+
+        certificate_file     = request.files.get("certificate")
         certificate_provided = bool(certificate_file and certificate_file.filename)
-        if not certificate_provided:
-            errors.append("Please upload your certificate or diploma — a profile cannot be created without proof of qualification.")
+        if not certificate_provided and not session.get("reg_certificate_filename"):
+            errors.append("Please upload your certificate or diploma.")
         if certificate_provided and not certificate_number:
             errors.append("Please enter the certificate/diploma number printed on your document.")
 
         if errors:
             for e in errors:
                 flash(e, "error")
-            return render_template(
-                "register.html",
-                skill_categories=SKILL_CATEGORIES,
-                degree_levels=DEGREE_LEVELS,
-                provinces=list(RWANDA_LOCATIONS.keys()),
-                form_data=request.form,
+            return render_template("register_step2.html",
+                skill_categories=SKILL_CATEGORIES, degree_levels=DEGREE_LEVELS,
+                t=get_t(), lang=get_lang(), technician=current_technician())
+
+        # Handle certificate upload & OCR/QR verification
+        if certificate_provided:
+            certificate_filename = save_upload(certificate_file, UPLOAD_CERT_DIR, ALLOWED_CERT_EXT)
+            if not certificate_filename:
+                flash("Certificate file couldn't be saved — please use PDF, PNG, or JPG under 5MB.", "error")
+                return render_template("register_step2.html",
+                    skill_categories=SKILL_CATEGORIES, degree_levels=DEGREE_LEVELS,
+                    t=get_t(), lang=get_lang(), technician=current_technician())
+
+            cert_path = os.path.join(UPLOAD_CERT_DIR, certificate_filename)
+            is_foreign = any(x in (degree_level or "") for x in ("Bachelor", "Master", "PhD", "L6"))
+            check = verify_technician_certificate(
+                cert_path, session["reg_full_name"], degree, certificate_number, is_foreign=is_foreign
             )
+            print(f"[STEP2 VERIFY] {check}", flush=True)
+
+            if check.get("nesa_verified"):
+                print("[STEP2] ✅ Accepted via NESA portal.", flush=True)
+            elif check["ocr_ran"] and not check["type_ok"]:
+                os.remove(cert_path)
+                flash(check.get("error") or
+                      f"The uploaded document doesn't look like a valid {qualification_type} document.", "error")
+                return render_template("register_step2.html",
+                    skill_categories=SKILL_CATEGORIES, degree_levels=DEGREE_LEVELS,
+                    t=get_t(), lang=get_lang(), technician=current_technician())
+            elif check["ocr_ran"] and not check["field_ok"]:
+                os.remove(cert_path)
+                flash(check.get("error") or
+                      f"We couldn't find \"{degree}\" on the uploaded document. "
+                      "Please upload the correct certificate.", "error")
+                return render_template("register_step2.html",
+                    skill_categories=SKILL_CATEGORIES, degree_levels=DEGREE_LEVELS,
+                    t=get_t(), lang=get_lang(), technician=current_technician())
+
+            session["reg_certificate_filename"] = certificate_filename
+
+        # Handle optional photo
+        photo_file = request.files.get("photo")
+        if photo_file and photo_file.filename:
+            photo_filename = save_upload(photo_file, UPLOAD_PHOTO_DIR, ALLOWED_PHOTO_EXT)
+            if photo_filename:
+                session["reg_photo_filename"] = photo_filename
+
+        session["reg_qualification_type"] = qualification_type
+        session["reg_degree_level"]       = degree_level
+        session["reg_degree"]             = degree
+        session["reg_skill_category"]     = skill_category
+        session["reg_certificate_number"] = certificate_number
+        session["reg_bio"]                = bio
+        return redirect(url_for("register_step3"))
+
+    return render_template("register_step2.html",
+        skill_categories=SKILL_CATEGORIES, degree_levels=DEGREE_LEVELS,
+        t=get_t(), lang=get_lang(), technician=current_technician())
+
+
+@app.route("/register/step3", methods=["GET", "POST"])
+def register_step3():
+    """Step 3 — Geographic Location."""
+    if not session.get("reg_skill_category"):
+        return redirect(url_for("register_step2"))
+
+    if request.method == "POST":
+        province = request.form.get("province", "").strip()
+        district = request.form.get("district", "").strip()
+        sector   = request.form.get("sector", "").strip()
+
+        errors = []
+        if not province: errors.append("Please choose your Province.")
+        if not district: errors.append("Please choose your District.")
+        if not sector:   errors.append("Please choose your Sector.")
+
+        if errors:
+            for e in errors:
+                flash(e, "error")
+            return render_template("register_step3.html",
+                provinces=list(RWANDA_LOCATIONS.keys()),
+                t=get_t(), lang=get_lang(), technician=current_technician())
+
+        session["reg_province"] = province
+        session["reg_district"] = district
+        session["reg_sector"]   = sector
+        return redirect(url_for("register_step4"))
+
+    return render_template("register_step3.html",
+        provinces=list(RWANDA_LOCATIONS.keys()),
+        t=get_t(), lang=get_lang(), technician=current_technician())
+
+
+@app.route("/register/step4", methods=["GET", "POST"])
+def register_step4():
+    """Step 4 — Account Security & Final DB Insertion."""
+    if not session.get("reg_province"):
+        return redirect(url_for("register_step3"))
+
+    if request.method == "POST":
+        password         = request.form.get("password", "")
+        confirm_password = request.form.get("confirm_password", "")
+
+        errors = []
+        if not is_strong_password(password):
+            errors.append("Password must be 8+ characters with uppercase, lowercase, number and symbol.")
+        if password != confirm_password:
+            errors.append("Passwords do not match.")
+
+        if errors:
+            for e in errors:
+                flash(e, "error")
+            return render_template("register_step4.html", t=get_t(), lang=get_lang(), technician=current_technician())
+
+        # Final DB insertion
+        full_name            = session.get("reg_full_name", "")
+        phone                = session.get("reg_phone", "")
+        whatsapp             = session.get("reg_whatsapp", "")
+        email                = session.get("reg_email", "")
+        qualification_type   = session.get("reg_qualification_type", "")
+        degree_level         = session.get("reg_degree_level", "")
+        degree               = session.get("reg_degree", "")
+        skill_category       = session.get("reg_skill_category", "")
+        certificate_number   = session.get("reg_certificate_number", "")
+        bio                  = session.get("reg_bio", "")
+        photo_filename       = session.get("reg_photo_filename", None)
+        certificate_filename = session.get("reg_certificate_filename", "")
+        province             = session.get("reg_province", "")
+        district             = session.get("reg_district", "")
+        sector               = session.get("reg_sector", "")
+        password_hash        = generate_password_hash(password)
 
         conn = get_db_connection()
-
-        # Email must be unique (it's how they log in)
         existing = conn.execute("SELECT id FROM technicians WHERE email = ?", (email,)).fetchone()
         if existing:
             conn.close()
-            flash("An account with that email already exists. Try logging in instead.", "error")
-            return render_template(
-                "register.html",
-                skill_categories=SKILL_CATEGORIES,
-                degree_levels=DEGREE_LEVELS,
-                provinces=list(RWANDA_LOCATIONS.keys()),
-                form_data=request.form,
-            )
-
-        photo_filename = save_upload(request.files.get("photo"), UPLOAD_PHOTO_DIR, ALLOWED_PHOTO_EXT)
-        certificate_filename = save_upload(request.files.get("certificate"), UPLOAD_CERT_DIR, ALLOWED_CERT_EXT)
-
-        if not certificate_filename:
-            conn.close()
-            flash(
-                "Your certificate file couldn't be uploaded — please make sure it's a PDF, PNG, or JPG file under 5MB.",
-                "error",
-            )
-            return render_template(
-                "register.html",
-                skill_categories=SKILL_CATEGORIES,
-                degree_levels=DEGREE_LEVELS,
-                provinces=list(RWANDA_LOCATIONS.keys()),
-                form_data=request.form,
-            )
-
-        # Automatic check: does the uploaded document look like the right
-        # type, and does its visible text mention the field they claimed?
-        cert_path = os.path.join(UPLOAD_CERT_DIR, certificate_filename)
-
-        # Run verification — tries QR→NESA portal first, falls back to OCR
-        is_foreign = any(x in (degree_level or "") for x in ("Bachelor", "Master", "PhD", "L6"))
-        check = verify_technician_certificate(
-            cert_path, full_name, degree, certificate_number, is_foreign=is_foreign
-        )
-        print(f"[VERIFY] qualification_type={qualification_type!r} degree_level={degree_level!r} "
-              f"skill_category={skill_category!r} degree={degree!r} -> check={check}", flush=True)
-
-        if check.get("nesa_verified"):
-            # Passed live NESA portal — skip further checks
-            print("[VERIFY] ✅ Accepted via NESA portal.", flush=True)
-        elif check["ocr_ran"] and not check["type_ok"]:
-            os.remove(cert_path)
-            conn.close()
-            flash(
-                check.get("error") or
-                f"The uploaded document doesn't look like a valid {qualification_type} document. "
-                "Please upload the correct certificate or diploma.",
-                "error",
-            )
-            return render_template(
-                "register.html",
-                skill_categories=SKILL_CATEGORIES,
-                degree_levels=DEGREE_LEVELS,
-                provinces=list(RWANDA_LOCATIONS.keys()),
-                form_data=request.form,
-            )
-        elif check["ocr_ran"] and not check["field_ok"]:
-            os.remove(cert_path)
-            conn.close()
-            flash(
-                check.get("error") or
-                f"We couldn't find \"{degree}\" mentioned anywhere on the uploaded document. "
-                "Please make sure you're uploading the certificate for the field you selected.",
-                "error",
-            )
-            return render_template(
-                "register.html",
-                skill_categories=SKILL_CATEGORIES,
-                degree_levels=DEGREE_LEVELS,
-                provinces=list(RWANDA_LOCATIONS.keys()),
-                form_data=request.form,
-            )
-
-        password_hash = generate_password_hash(password)
+            flash("An account with that email already exists.", "error")
+            return redirect(url_for("register"))
 
         cursor = conn.execute(
-            """
-            INSERT INTO technicians
-                (full_name, qualification_type, degree_level, degree, skill_category, phone, whatsapp, email, password_hash,
-                 province, district, sector, bio, photo_filename, certificate_filename, certificate_number)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (full_name, qualification_type, degree_level, degree, skill_category, phone, whatsapp, email, password_hash,
-             province, district, sector, bio, photo_filename, certificate_filename, certificate_number),
+            """INSERT INTO technicians
+                (full_name, qualification_type, degree_level, degree, skill_category,
+                 phone, whatsapp, email, password_hash,
+                 province, district, sector, bio,
+                 photo_filename, certificate_filename, certificate_number)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (full_name, qualification_type, degree_level, degree, skill_category,
+             phone, whatsapp, email, password_hash,
+             province, district, sector, bio,
+             photo_filename, certificate_filename, certificate_number),
         )
         conn.commit()
         new_id = cursor.lastrowid
         conn.close()
 
-        # Log them in immediately after signing up
+        # Clear all registration session keys
+        for key in ["reg_full_name","reg_phone","reg_whatsapp","reg_email",
+                    "reg_qualification_type","reg_degree_level","reg_degree",
+                    "reg_skill_category","reg_certificate_number","reg_bio",
+                    "reg_photo_filename","reg_certificate_filename",
+                    "reg_province","reg_district","reg_sector"]:
+            session.pop(key, None)
+
         session["technician_id"] = new_id
         flash(f"Welcome, {full_name}! Your profile is live. Choose a plan to stay listed after your 7-day free trial.", "success")
         return redirect(url_for("select_plan"))
 
-    return render_template(
-        "register.html",
-        skill_categories=SKILL_CATEGORIES,
-        degree_levels=DEGREE_LEVELS,
-        provinces=list(RWANDA_LOCATIONS.keys()),
-        form_data={},
-    )
+    return render_template("register_step4.html", t=get_t(), lang=get_lang(), technician=current_technician())
 
 
 # ---------- Login / Logout ----------
@@ -1296,15 +1366,3 @@ def cookie_policy():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, port=5001)
-
-
-def scan_qr_code(image_path):
-    try:
-        img = cv2.imread(image_path)
-        if img is None: return None
-        detector = cv2.QRCodeDetector()
-        data, _, _ = detector.detectAndDecode(img)
-        return data.strip() if data else None
-    except Exception as e:
-        print(f"[QR SCAN ERROR] {e}")
-        return None

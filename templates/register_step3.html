@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Sign Up — Step 3 of 4{% endblock %}
+{% block content %}
+<div class="card" style="max-width:560px;margin:0 auto;">
+  <div style="margin-bottom:28px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <span style="font-size:0.78rem;font-weight:700;color:#2563EB;">STEP 3 OF 4</span>
+      <span style="font-size:0.78rem;color:#64748b;">Geographic Location</span>
+    </div>
+    <div style="background:#e2e8f0;border-radius:99px;height:6px;">
+      <div style="background:#2563EB;width:75%;height:6px;border-radius:99px;"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:8px;">
+      <span style="font-size:0.7rem;color:#10B981;font-weight:700;">✓ Contact</span>
+      <span style="font-size:0.7rem;color:#10B981;font-weight:700;">✓ Qualifications</span>
+      <span style="font-size:0.7rem;font-weight:700;color:#2563EB;">Location</span>
+      <span style="font-size:0.7rem;color:#94a3b8;">Security</span>
+    </div>
+  </div>
+  <h1 style="font-size:1.4rem;margin:0 0 6px;">Geographic Location</h1>
+  <p class="hint" style="margin:0 0 24px;">Clients search by location — choose the sector where you are based and available for work.</p>
+  <form method="POST" action="{{ url_for('register_step3') }}">
+    <label for="province">Province *</label>
+    <select id="province" name="province" required>
+      <option value="">-- Select Province --</option>
+      {% for prov in provinces %}
+        <option value="{{ prov }}" {% if session.get('reg_province')==prov %}selected{% endif %}>{{ prov }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="district">District *</label>
+    <select id="district" name="district" required {% if not session.get('reg_province') %}disabled{% endif %}>
+      <option value="">{% if session.get('reg_province') %}-- Select District --{% else %}Select province first{% endif %}</option>
+      {% if session.get('reg_province') and session.get('reg_district') %}
+        <option value="{{ session.get('reg_district') }}" selected>{{ session.get('reg_district') }}</option>
+      {% endif %}
+    </select>
+
+    <label for="sector">Sector *</label>
+    <select id="sector" name="sector" required {% if not session.get('reg_district') %}disabled{% endif %}>
+      <option value="">{% if session.get('reg_district') %}-- Select Sector --{% else %}Select district first{% endif %}</option>
+      {% if session.get('reg_district') and session.get('reg_sector') %}
+        <option value="{{ session.get('reg_sector') }}" selected>{{ session.get('reg_sector') }}</option>
+      {% endif %}
+    </select>
+
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 16px;margin-top:16px;font-size:0.83rem;color:#1e40af;">
+      📍 <strong>Tip:</strong> Choose the sector closest to where you live or work — clients near you will see your profile first.
+    </div>
+
+    <div style="display:flex;justify-content:space-between;margin-top:28px;gap:12px;">
+      <a href="{{ url_for('register_step2') }}" class="btn btn-secondary" style="margin-top:0;">← Back</a>
+      <button type="submit" style="margin-top:0;padding:12px 32px;">Next: Security →</button>
+    </div>
+  </form>
+</div>
+<script>
+const prov=document.getElementById('province');
+const dist=document.getElementById('district');
+const sect=document.getElementById('sector');
+const PRE_D="{{ session.get('reg_district','') }}";
+const PRE_S="{{ session.get('reg_sector','') }}";
+
+async function loadDistricts(province,preselect){
+  if(!province){dist.innerHTML='<option value="">Select province first</option>';dist.disabled=true;sect.innerHTML='<option value="">Select district first</option>';sect.disabled=true;return;}
+  const r=await fetch('/api/districts?province='+encodeURIComponent(province));
+  const d=await r.json();
+  dist.innerHTML='<option value="">-- Select District --</option>'+d.map(x=>`<option value="${x}" ${x===preselect?'selected':''}>${x}</option>`).join('');
+  dist.disabled=false;
+}
+async function loadSectors(province,district,preselect){
+  if(!district){sect.innerHTML='<option value="">Select district first</option>';sect.disabled=true;return;}
+  const r=await fetch('/api/sectors?province='+encodeURIComponent(province)+'&district='+encodeURIComponent(district));
+  const s=await r.json();
+  sect.innerHTML='<option value="">-- Select Sector --</option>'+s.map(x=>`<option value="${x}" ${x===preselect?'selected':''}>${x}</option>`).join('');
+  sect.disabled=false;
+}
+prov.addEventListener('change',()=>{loadDistricts(prov.value,'');sect.innerHTML='<option value="">Select district first</option>';sect.disabled=true;});
+dist.addEventListener('change',()=>loadSectors(prov.value,dist.value,''));
+window.addEventListener('DOMContentLoaded',async()=>{
+  if(prov.value){await loadDistricts(prov.value,PRE_D);if(PRE_D)await loadSectors(prov.value,PRE_D,PRE_S);}
+});
+</script>
+{% endblock %}
