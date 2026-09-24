@@ -23,27 +23,27 @@
     <label for="qualification_type">Qualification Type *</label>
     <select id="qualification_type" name="qualification_type" required>
       <option value="">-- Select your qualification type --</option>
-      <option value="Advanced TVET Certificate V (L5)" {% if session.get('reg_qualification_type')=='Advanced TVET Certificate V (L5)' %}selected{% endif %}>🎓 Advanced TVET Certificate V (L5) — Rwanda Technical Certificate of Education</option>
-      <option value="Professional Certificate" {% if session.get('reg_qualification_type')=='Professional Certificate' %}selected{% endif %}>📜 Professional Certificate — Industry / Vocational Credential</option>
-      <option value="Degree / Advanced Diploma (L6+)" {% if session.get('reg_qualification_type')=='Degree / Advanced Diploma (L6+)' %}selected{% endif %}>🏛️ Degree / Advanced Diploma (L6+) — University / Higher Education</option>
+      <option value="Advanced TVET Certificate V (L5)" {% if session.get('reg_qualification_type')=='Advanced TVET Certificate V (L5)' %}selected{% endif %}>Advanced TVET Certificate V (L5) — Rwanda Technical Certificate of Education</option>
+      <option value="Professional Certificate" {% if session.get('reg_qualification_type')=='Professional Certificate' %}selected{% endif %}>Professional Certificate — Industry / Vocational Credential</option>
+      <option value="Degree / Advanced Diploma (L6+)" {% if session.get('reg_qualification_type')=='Degree / Advanced Diploma (L6+)' %}selected{% endif %}>Degree / Advanced Diploma (L6+) — University / Higher Education</option>
     </select>
-    <p class="hint">ℹ️ <strong>TVET S6 graduates</strong> — select "Advanced TVET Certificate V (L5)", the <em>Rwanda Technical Certificate of Education</em> issued by NESA.</p>
+    <p class="hint"><strong>TVET S6 graduates:</strong> — select "Advanced TVET Certificate V (L5)", the <em>Rwanda Technical Certificate of Education</em> issued by NESA.</p>
 
     <div id="degree_level_wrapper" style="display:none;">
       <label for="degree_level">Qualification Level</label>
       <select id="degree_level" name="degree_level">
         <option value="">-- Select level --</option>
-        <optgroup label="🎓 TVET (NESA)">
+        <optgroup label="TVET (NESA)">
           <option value="Advanced TVET Certificate V (L5)" {% if session.get('reg_degree_level')=='Advanced TVET Certificate V (L5)' %}selected{% endif %}>L5 — Advanced TVET Certificate V</option>
         </optgroup>
-        <optgroup label="📜 Professional">
+        <optgroup label="Professional Certificate">
           <option value="Professional Certificate" {% if session.get('reg_degree_level')=='Professional Certificate' %}selected{% endif %}>Professional Certificate</option>
         </optgroup>
-        <optgroup label="🏛️ University (L6+)">
-          <option value="A1 / Advanced Diploma" {% if session.get('reg_degree_level')=='A1 / Advanced Diploma' %}selected{% endif %}>A1 / Advanced Diploma (L6)</option>
-          <option value="Bachelor's Degree" {% if session.get('reg_degree_level')=="Bachelor's Degree" %}selected{% endif %}>Bachelor's Degree (L7)</option>
-          <option value="Master's Degree" {% if session.get('reg_degree_level')=="Master's Degree" %}selected{% endif %}>Master's Degree (L8)</option>
-          <option value="PhD / Doctorate" {% if session.get('reg_degree_level')=='PhD / Doctorate' %}selected{% endif %}>PhD / Doctorate (L9)</option>
+        <optgroup label="University / Higher Education">
+          <option value="Advanced Diploma (A1)" {% if session.get('reg_degree_level')=='Advanced Diploma (A1)' %}selected{% endif %}>Advanced Diploma (A1)</option>
+          <option value="Bachelor's Degree (A0)" {% if session.get('reg_degree_level')=="Bachelor's Degree" %}selected{% endif %}>Bachelor's Degree (A0)</option>
+          <option value="Master's Degree" {% if session.get('reg_degree_level')=="Master's Degree" %}selected{% endif %}>Master's Degree</option>
+          <option value="PhD / Doctorate" {% if session.get('reg_degree_level')=='PhD / Doctorate' %}selected{% endif %}>PhD / Doctorate</option>
         </optgroup>
       </select>
     </div>
