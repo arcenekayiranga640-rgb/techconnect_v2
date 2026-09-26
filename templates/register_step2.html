@@ -1,92 +1,165 @@
 {% extends "base.html" %}
-{% block title %}Sign Up — Step 2 of 4{% endblock %}
+{% block title %}Sign Up — Professional Qualifications{% endblock %}
 {% block content %}
-<div class="card" style="max-width:620px;margin:0 auto;">
-  <div style="margin-bottom:28px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-      <span style="font-size:0.78rem;font-weight:700;color:#2563EB;">STEP 2 OF 4</span>
-      <span style="font-size:0.78rem;color:#64748b;">Professional Qualifications</span>
-    </div>
-    <div style="background:#e2e8f0;border-radius:99px;height:6px;">
-      <div style="background:#2563EB;width:50%;height:6px;border-radius:99px;"></div>
-    </div>
-    <div style="display:flex;justify-content:space-between;margin-top:8px;">
-      <span style="font-size:0.7rem;color:#10B981;font-weight:700;">✓ Contact</span>
-      <span style="font-size:0.7rem;font-weight:700;color:#2563EB;">Qualifications</span>
-      <span style="font-size:0.7rem;color:#94a3b8;">Location</span>
-      <span style="font-size:0.7rem;color:#94a3b8;">Security</span>
-    </div>
-  </div>
-  <h1 style="font-size:1.4rem;margin:0 0 6px;">Professional Qualifications & Experience</h1>
-  <p class="hint" style="margin:0 0 24px;">Tell us about your qualification and upload your certificate.</p>
-  <form method="POST" action="{{ url_for('register_step2') }}" enctype="multipart/form-data">
-    <label for="qualification_type">Qualification Type *</label>
-    <select id="qualification_type" name="qualification_type" required>
-      <option value="">-- Select your qualification type --</option>
-      <option value="Advanced TVET Certificate V (L5)" {% if session.get('reg_qualification_type')=='Advanced TVET Certificate V (L5)' %}selected{% endif %}>Advanced TVET Certificate V (L5) — Rwanda Technical Certificate of Education</option>
-      <option value="Professional Certificate" {% if session.get('reg_qualification_type')=='Professional Certificate' %}selected{% endif %}>Professional Certificate — Industry / Vocational Credential</option>
-      <option value="Degree / Advanced Diploma (L6+)" {% if session.get('reg_qualification_type')=='Degree / Advanced Diploma (L6+)' %}selected{% endif %}>Degree / Advanced Diploma (L6+) — University / Higher Education</option>
-    </select>
-    <p class="hint"><strong>TVET S6 graduates:</strong> — select "Advanced TVET Certificate V (L5)", the <em>Rwanda Technical Certificate of Education</em> issued by NESA.</p>
+<style>
+body{margin:0;font-family:"Segoe UI",Arial,sans-serif;}
+.wizard-bg{min-height:100vh;background:linear-gradient(135deg,#0F172A 0%,#1e3a5f 55%,#0d4db5 100%);padding:40px 20px 60px;}
+.wizard-card{max-width:600px;margin:0 auto;background:rgba(255,255,255,0.10);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,0.20);border-radius:20px;padding:40px 44px;box-shadow:0 24px 48px rgba(0,0,0,0.35);}
+.wiz-title{color:white;font-size:1.55rem;font-weight:700;margin:0 0 6px;}
+.wiz-sub{color:rgba(255,255,255,0.6);font-size:0.87rem;margin:0 0 28px;line-height:1.5;}
+label{display:block;margin-top:18px;margin-bottom:6px;font-weight:600;color:rgba(255,255,255,0.85);font-size:0.88rem;}
+input,select,textarea{width:100%;padding:11px 14px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.22);border-radius:8px;font-size:0.92rem;color:white;font-family:inherit;transition:border-color 0.2s;box-sizing:border-box;}
+input::placeholder,textarea::placeholder{color:rgba(255,255,255,0.35);}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#4da6ff;background:rgba(255,255,255,0.18);}
+select option{background:#1e3a5f;color:white;}
+textarea{resize:vertical;}
+.hint{font-size:0.78rem;color:rgba(255,255,255,0.45);margin-top:5px;}
+.btn-row{display:flex;justify-content:space-between;gap:12px;margin-top:32px;align-items:center;}
+.btn-prev{background:rgba(255,255,255,0.12);color:white;border:1px solid rgba(255,255,255,0.25);padding:12px 28px;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;transition:background 0.2s;}
+.btn-prev:hover{background:rgba(255,255,255,0.2);color:white;}
+.btn-next{background:#2563EB;color:white;border:none;padding:12px 36px;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;transition:background 0.2s;}
+.btn-next:hover{background:#1d4ed8;}
+.already-badge{color:#6ee7b7;font-size:0.75rem;margin-left:8px;font-weight:600;}
+.on-file-box{background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:6px;padding:9px 13px;font-size:0.82rem;color:rgba(110,231,183,0.9);margin-bottom:8px;}
+</style>
 
-    <div id="degree_level_wrapper" style="display:none;">
-      <label for="degree_level">Qualification Level</label>
-      <select id="degree_level" name="degree_level">
-        <option value="">-- Select level --</option>
-        <optgroup label="TVET (NESA)">
-          <option value="Advanced TVET Certificate V (L5)" {% if session.get('reg_degree_level')=='Advanced TVET Certificate V (L5)' %}selected{% endif %}>L5 — Advanced TVET Certificate V</option>
-        </optgroup>
-        <optgroup label="Professional Certificate">
-          <option value="Professional Certificate" {% if session.get('reg_degree_level')=='Professional Certificate' %}selected{% endif %}>Professional Certificate</option>
-        </optgroup>
-        <optgroup label="University / Higher Education">
-          <option value="Advanced Diploma (A1)" {% if session.get('reg_degree_level')=='Advanced Diploma (A1)' %}selected{% endif %}>Advanced Diploma (A1)</option>
-          <option value="Bachelor's Degree (A0)" {% if session.get('reg_degree_level')=="Bachelor's Degree" %}selected{% endif %}>Bachelor's Degree (A0)</option>
-          <option value="Master's Degree" {% if session.get('reg_degree_level')=="Master's Degree" %}selected{% endif %}>Master's Degree</option>
-          <option value="PhD / Doctorate" {% if session.get('reg_degree_level')=='PhD / Doctorate' %}selected{% endif %}>PhD / Doctorate</option>
-        </optgroup>
+<div class="wizard-bg">
+  <div class="wizard-card">
+    <h1 class="wiz-title">Professional Qualifications</h1>
+    <p class="wiz-sub">Tell us about your qualification and upload your certificate for verification.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}{% for category, message in messages %}
+        <div style="padding:11px 14px;border-radius:8px;margin-bottom:14px;font-size:0.85rem;font-weight:500;
+          background:{% if category=='error' %}rgba(239,68,68,0.2){% else %}rgba(16,185,129,0.2){% endif %};
+          color:{% if category=='error' %}#fca5a5{% else %}#6ee7b7{% endif %};
+          border:1px solid {% if category=='error' %}rgba(239,68,68,0.4){% else %}rgba(16,185,129,0.4){% endif %};">
+          {{ message }}
+        </div>
+      {% endfor %}{% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('register_step2') }}" enctype="multipart/form-data">
+
+      <label for="qualification_type">Qualification Type *</label>
+      <select id="qualification_type" name="qualification_type" required>
+        <option value="">-- Select your qualification type --</option>
+        <option value="Advanced TVET Certificate V (L5)"
+          {% if session.get('reg_qualification_type')=='Advanced TVET Certificate V (L5)' %}selected{% endif %}>
+          Advanced TVET Certificate V (L5) — Rwanda Technical Certificate of Education
+        </option>
+        <option value="Professional Certificate"
+          {% if session.get('reg_qualification_type')=='Professional Certificate' %}selected{% endif %}>
+          Professional Certificate — Industry / Vocational Credential
+        </option>
+        <option value="Degree / Advanced Diploma (L6+)"
+          {% if session.get('reg_qualification_type')=='Degree / Advanced Diploma (L6+)' %}selected{% endif %}>
+          Degree / Advanced Diploma (L6+) — University / Higher Education
+        </option>
       </select>
-    </div>
+      <p class="hint"><strong style="color:rgba(255,255,255,0.7);">TVET S6 graduates:</strong> select "Advanced TVET Certificate V (L5)" — the Rwanda Technical Certificate of Education issued by NESA.</p>
 
-    <label for="degree">Field of Study / Specialization *</label>
-    <input type="text" id="degree" name="degree" value="{{ session.get('reg_degree','') }}" placeholder="e.g. LAND SURVEYING" required style="text-transform:uppercase;">
-    <p class="hint">Must match exactly what is written on your certificate.</p>
+      <div id="degree_level_wrapper" style="display:none;">
+        <label for="degree_level">Qualification Level</label>
+        <select id="degree_level" name="degree_level">
+          <option value="">-- Select level --</option>
+          <optgroup label="TVET (NESA)">
+            <option value="Advanced TVET Certificate V (L5)"
+              {% if session.get('reg_degree_level')=='Advanced TVET Certificate V (L5)' %}selected{% endif %}>
+              Advanced TVET Certificate V (L5)
+            </option>
+          </optgroup>
+          <optgroup label="Professional Certificate">
+            <option value="Professional Certificate"
+              {% if session.get('reg_degree_level')=='Professional Certificate' %}selected{% endif %}>
+              Professional Certificate
+            </option>
+          </optgroup>
+          <optgroup label="University / Higher Education">
+            <option value="Advanced Diploma (A1)"
+              {% if session.get('reg_degree_level')=='Advanced Diploma (A1)' %}selected{% endif %}>
+              Advanced Diploma (A1)
+            </option>
+            <option value="Bachelor's Degree (A0)"
+              {% if session.get('reg_degree_level')=="Bachelor's Degree (A0)" %}selected{% endif %}>
+              Bachelor's Degree (A0)
+            </option>
+            <option value="Master's Degree"
+              {% if session.get('reg_degree_level')=="Master's Degree" %}selected{% endif %}>
+              Master's Degree
+            </option>
+            <option value="PhD / Doctorate"
+              {% if session.get('reg_degree_level')=='PhD / Doctorate' %}selected{% endif %}>
+              PhD / Doctorate
+            </option>
+          </optgroup>
+        </select>
+      </div>
 
-    <label for="skill_category">Skill Category *</label>
-    <select id="skill_category" name="skill_category" required>
-      <option value="">-- Select your trade --</option>
-      {% for category in skill_categories %}
-        <option value="{{ category }}" {% if session.get('reg_skill_category')==category %}selected{% endif %}>{{ category }}</option>
-      {% endfor %}
-    </select>
+      <label for="degree">Field of Study / Specialization *</label>
+      <input type="text" id="degree" name="degree"
+             value="{{ session.get('reg_degree','') }}"
+             placeholder="e.g. LAND SURVEYING" required style="text-transform:uppercase;">
+      <p class="hint">Must match exactly what is written on your certificate.</p>
 
-    <label for="certificate" style="margin-top:20px;">
-      Certificate / Diploma *
-      {% if session.get('reg_certificate_filename') %}<span style="color:#10B981;font-size:0.78rem;margin-left:8px;">✅ Already uploaded</span>{% endif %}
-    </label>
-    {% if session.get('reg_certificate_filename') %}
-      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;font-size:0.83rem;color:#065f46;margin-bottom:8px;">Certificate on file — upload a new one below only to replace it.</div>
-    {% endif %}
-    <input type="file" id="certificate" name="certificate" accept=".pdf,.png,.jpg,.jpeg" {% if not session.get('reg_certificate_filename') %}required{% endif %}>
-    <p class="hint">PDF or image, max 5MB. Must be your official NESA/RTB certificate. Verified automatically.</p>
+      <label for="skill_category">Skill Category *</label>
+      <select id="skill_category" name="skill_category" required>
+        <option value="">-- Select your trade --</option>
+        {% for category in skill_categories %}
+          <option value="{{ category }}"
+            {% if session.get('reg_skill_category')==category %}selected{% endif %}>
+            {{ category }}
+          </option>
+        {% endfor %}
+      </select>
 
-    <label for="certificate_number">Certificate / Index Number *</label>
-    <input type="text" id="certificate_number" name="certificate_number" value="{{ session.get('reg_certificate_number','') }}" placeholder="e.g. 210511LSV0112025" required>
-    <p class="hint">The Index Number or reference code printed on your certificate.</p>
+      <label for="certificate">
+        Certificate / Diploma *
+        {% if session.get('reg_certificate_filename') %}
+          <span class="already-badge">Already uploaded</span>
+        {% endif %}
+      </label>
+      {% if session.get('reg_certificate_filename') %}
+        <div class="on-file-box">Certificate on file — upload a new one below only to replace it.</div>
+      {% endif %}
+      <input type="file" id="certificate" name="certificate"
+             accept=".pdf,.png,.jpg,.jpeg"
+             {% if not session.get('reg_certificate_filename') %}required{% endif %}
+             style="color:rgba(255,255,255,0.7);">
+      <p class="hint">PDF or image, max 5MB. Must be your official NESA/RTB certificate — verified automatically.</p>
 
-    <label for="photo">Profile Photo <span style="color:#94a3b8;font-weight:400;">(optional)</span></label>
-    {% if session.get('reg_photo_filename') %}<p style="font-size:0.82rem;color:#10B981;margin:4px 0;">✅ Photo already uploaded</p>{% endif %}
-    <input type="file" id="photo" name="photo" accept=".png,.jpg,.jpeg,.webp">
+      <label for="certificate_number">Certificate / Index Number *</label>
+      <input type="text" id="certificate_number" name="certificate_number"
+             value="{{ session.get('reg_certificate_number','') }}"
+             placeholder="e.g. 210511LSV0112025" required>
+      <p class="hint">The Index Number or reference code printed on your certificate.</p>
 
-    <label for="bio">Short Bio / Experience <span style="color:#94a3b8;font-weight:400;">(optional)</span></label>
-    <textarea id="bio" name="bio" rows="3" placeholder="e.g. 3 years experience in land surveying and GIS mapping...">{{ session.get('reg_bio','') }}</textarea>
+      <label for="photo">
+        Profile Photo
+        <span style="color:rgba(255,255,255,0.4);font-weight:400;">(optional)</span>
+        {% if session.get('reg_photo_filename') %}
+          <span class="already-badge">Photo uploaded</span>
+        {% endif %}
+      </label>
+      <input type="file" id="photo" name="photo"
+             accept=".png,.jpg,.jpeg,.webp"
+             style="color:rgba(255,255,255,0.7);">
 
-    <div style="display:flex;justify-content:space-between;margin-top:28px;gap:12px;">
-      <a href="{{ url_for('register') }}" class="btn btn-secondary" style="margin-top:0;">← Back</a>
-      <button type="submit" style="margin-top:0;padding:12px 32px;">Next: Location →</button>
-    </div>
-  </form>
+      <label for="bio">
+        Short Bio / Experience
+        <span style="color:rgba(255,255,255,0.4);font-weight:400;">(optional)</span>
+      </label>
+      <textarea id="bio" name="bio" rows="3"
+                placeholder="e.g. 3 years experience in land surveying and GIS mapping...">{{ session.get('reg_bio','') }}</textarea>
+
+      <div class="btn-row">
+        <a href="{{ url_for('register') }}" class="btn-prev">Previous</a>
+        <button type="submit" class="btn-next">Next</button>
+      </div>
+    </form>
+  </div>
 </div>
+
 <script>
 const qt=document.getElementById('qualification_type');
 const lw=document.getElementById('degree_level_wrapper');
@@ -94,6 +167,10 @@ function updLevel(){lw.style.display=qt.value?'block':'none';}
 qt.addEventListener('change',updLevel);
 window.addEventListener('DOMContentLoaded',updLevel);
 const degInput=document.getElementById('degree');
-degInput.addEventListener('input',()=>{const p=degInput.selectionStart;degInput.value=degInput.value.toUpperCase();degInput.setSelectionRange(p,p);});
+degInput.addEventListener('input',()=>{
+  const p=degInput.selectionStart;
+  degInput.value=degInput.value.toUpperCase();
+  degInput.setSelectionRange(p,p);
+});
 </script>
 {% endblock %}

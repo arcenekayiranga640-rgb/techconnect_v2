@@ -1,80 +1,132 @@
 {% extends "base.html" %}
-{% block title %}Sign Up — Step 4 of 4{% endblock %}
+{% block title %}Sign Up — Account Security{% endblock %}
 {% block content %}
-<div class="card" style="max-width:560px;margin:0 auto;">
-  <div style="margin-bottom:28px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-      <span style="font-size:0.78rem;font-weight:700;color:#2563EB;">STEP 4 OF 4</span>
-      <span style="font-size:0.78rem;color:#64748b;">Account Security</span>
+<style>
+body{margin:0;font-family:"Segoe UI",Arial,sans-serif;}
+.wizard-bg{min-height:100vh;background:linear-gradient(135deg,#0F172A 0%,#1e3a5f 55%,#0d4db5 100%);padding:40px 20px 60px;}
+.wizard-card{max-width:580px;margin:0 auto;background:rgba(255,255,255,0.10);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,0.20);border-radius:20px;padding:40px 44px;box-shadow:0 24px 48px rgba(0,0,0,0.35);}
+.wiz-title{color:white;font-size:1.55rem;font-weight:700;margin:0 0 6px;}
+.wiz-sub{color:rgba(255,255,255,0.6);font-size:0.87rem;margin:0 0 24px;line-height:1.5;}
+label{display:block;margin-top:18px;margin-bottom:6px;font-weight:600;color:rgba(255,255,255,0.85);font-size:0.88rem;}
+input{width:100%;padding:11px 14px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.22);border-radius:8px;font-size:0.92rem;color:white;font-family:inherit;transition:border-color 0.2s;box-sizing:border-box;}
+input::placeholder{color:rgba(255,255,255,0.35);}
+input:focus{outline:none;border-color:#4da6ff;background:rgba(255,255,255,0.18);}
+.hint{font-size:0.78rem;color:rgba(255,255,255,0.45);margin-top:5px;}
+.pw-hint{font-size:0.78rem;margin-top:5px;min-height:18px;transition:color 0.2s;}
+.summary-box{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:16px 18px;margin-bottom:24px;font-size:0.83rem;color:rgba(255,255,255,0.7);}
+.summary-box strong{color:white;display:block;margin-bottom:10px;font-size:0.88rem;}
+.summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 16px;}
+.summary-item{display:flex;flex-direction:column;gap:1px;}
+.summary-label{font-size:0.7rem;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.5px;}
+.summary-value{color:rgba(255,255,255,0.85);font-size:0.82rem;}
+.edit-link{display:block;margin-top:10px;font-size:0.75rem;color:rgba(77,166,255,0.8);text-decoration:none;}
+.edit-link:hover{color:#4da6ff;}
+.trial-box{background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:14px 16px;font-size:0.83rem;color:rgba(110,231,183,0.9);margin-top:20px;line-height:1.6;}
+.btn-row{display:flex;justify-content:space-between;gap:12px;margin-top:28px;align-items:center;}
+.btn-prev{background:rgba(255,255,255,0.12);color:white;border:1px solid rgba(255,255,255,0.25);padding:12px 28px;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;transition:background 0.2s;}
+.btn-prev:hover{background:rgba(255,255,255,0.2);color:white;}
+.btn-submit{background:#10B981;color:white;border:none;padding:13px 32px;border-radius:8px;font-size:0.92rem;font-weight:700;cursor:pointer;transition:background 0.2s;flex:1;}
+.btn-submit:hover{background:#059669;}
+@media(max-width:520px){.wizard-card{padding:28px 18px;}.summary-grid{grid-template-columns:1fr;}}
+</style>
+
+<div class="wizard-bg">
+  <div class="wizard-card">
+    <h1 class="wiz-title">Account Security</h1>
+    <p class="wiz-sub">Almost done! Create a strong password to secure your profile.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}{% for category, message in messages %}
+        <div style="padding:11px 14px;border-radius:8px;margin-bottom:14px;font-size:0.85rem;font-weight:500;
+          background:{% if category=='error' %}rgba(239,68,68,0.2){% else %}rgba(16,185,129,0.2){% endif %};
+          color:{% if category=='error' %}#fca5a5{% else %}#6ee7b7{% endif %};
+          border:1px solid {% if category=='error' %}rgba(239,68,68,0.4){% else %}rgba(16,185,129,0.4){% endif %};">
+          {{ message }}
+        </div>
+      {% endfor %}{% endif %}
+    {% endwith %}
+
+    <!-- Registration Summary -->
+    <div class="summary-box">
+      <strong>Registration Summary</strong>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <span class="summary-label">Full Name</span>
+          <span class="summary-value">{{ session.get('reg_full_name','—') }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Phone</span>
+          <span class="summary-value">{{ session.get('reg_phone','—') }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Email</span>
+          <span class="summary-value">{{ session.get('reg_email','—') }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Qualification</span>
+          <span class="summary-value">{{ session.get('reg_qualification_type','—')|truncate(28,True,'…') }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Trade</span>
+          <span class="summary-value">{{ session.get('reg_skill_category','—') }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Location</span>
+          <span class="summary-value">{{ session.get('reg_sector','—') }}, {{ session.get('reg_district','—') }}</span>
+        </div>
+      </div>
+      <a href="{{ url_for('register') }}" class="edit-link">Something wrong? Go back to Step 1</a>
     </div>
-    <div style="background:#e2e8f0;border-radius:99px;height:6px;">
-      <div style="background:#2563EB;width:100%;height:6px;border-radius:99px;"></div>
-    </div>
-    <div style="display:flex;justify-content:space-between;margin-top:8px;">
-      <span style="font-size:0.7rem;color:#10B981;font-weight:700;">✓ Contact</span>
-      <span style="font-size:0.7rem;color:#10B981;font-weight:700;">✓ Qualifications</span>
-      <span style="font-size:0.7rem;color:#10B981;font-weight:700;">✓ Location</span>
-      <span style="font-size:0.7rem;font-weight:700;color:#2563EB;">Security</span>
-    </div>
+
+    <form method="POST" action="{{ url_for('register_step4') }}">
+      <label for="password">Password *</label>
+      <input type="password" id="password" name="password" required autocomplete="new-password"
+             placeholder="Create a strong password">
+      <p class="pw-hint" id="pw_hint" style="color:rgba(255,255,255,0.4);">8+ characters, uppercase, lowercase, number and symbol.</p>
+
+      <label for="confirm_password">Confirm Password *</label>
+      <input type="password" id="confirm_password" name="confirm_password" required autocomplete="new-password"
+             placeholder="Repeat your password">
+      <p class="pw-hint" id="pw_match"></p>
+
+      <div class="trial-box">
+        <strong style="color:#6ee7b7;">7-Day Free Trial Included</strong><br>
+        Your profile will be live immediately and visible to all clients for 7 days — completely free. You will choose a subscription plan after completing registration.
+      </div>
+
+      <div class="btn-row">
+        <a href="{{ url_for('register_step3') }}" class="btn-prev">Previous</a>
+        <button type="submit" class="btn-submit">Submit Registration</button>
+      </div>
+    </form>
   </div>
-
-  <h1 style="font-size:1.4rem;margin:0 0 6px;">Account Security & Completion</h1>
-  <p class="hint" style="margin:0 0 16px;">Almost done! Create a strong password to secure your profile.</p>
-
-  <!-- Summary of what they entered -->
-  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px;margin-bottom:24px;font-size:0.83rem;">
-    <p style="color:#0F172A;font-weight:700;margin:0 0 8px;">📋 Registration Summary</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;color:#475569;">
-      <span>👤 {{ session.get('reg_full_name','—') }}</span>
-      <span>📞 {{ session.get('reg_phone','—') }}</span>
-      <span>✉️ {{ session.get('reg_email','—') }}</span>
-      <span>🎓 {{ session.get('reg_qualification_type','—')|truncate(30) }}</span>
-      <span>🔧 {{ session.get('reg_skill_category','—') }}</span>
-      <span>📍 {{ session.get('reg_sector','—') }}, {{ session.get('reg_district','—') }}</span>
-    </div>
-    <p style="margin:8px 0 0;font-size:0.75rem;color:#94a3b8;">
-      Not right? <a href="{{ url_for('register') }}" style="color:#2563EB;">Go back to Step 1</a>
-    </p>
-  </div>
-
-  <form method="POST" action="{{ url_for('register_step4') }}">
-    <label for="password">Password *</label>
-    <input type="password" id="password" name="password" required autocomplete="new-password">
-    <p class="hint" id="pw_hint" style="color:var(--error);">8+ characters, uppercase, lowercase, number & symbol.</p>
-
-    <label for="confirm_password">Confirm Password *</label>
-    <input type="password" id="confirm_password" name="confirm_password" required autocomplete="new-password">
-    <p class="hint" id="pw_match"></p>
-
-    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;margin-top:16px;font-size:0.83rem;color:#065f46;">
-      🎉 <strong>7-Day Free Trial:</strong> Your profile will be live immediately and visible to all clients for 7 days — completely free. You'll choose a subscription plan after completing registration.
-    </div>
-
-    <div style="display:flex;justify-content:space-between;margin-top:28px;gap:12px;">
-      <a href="{{ url_for('register_step3') }}" class="btn btn-secondary" style="margin-top:0;">← Back</a>
-      <button type="submit" style="margin-top:0;padding:12px 32px;background:#10B981;">
-        ✅ Create My Profile
-      </button>
-    </div>
-  </form>
 </div>
+
 <script>
-const pw=document.getElementById('password');
-const pc=document.getElementById('confirm_password');
-const ph=document.getElementById('pw_hint');
-const pm=document.getElementById('pw_match');
-function ok(v){return v.length>=8&&/[A-Z]/.test(v)&&/[a-z]/.test(v)&&/[0-9]/.test(v)&&/[^A-Za-z0-9]/.test(v);}
-function updP(){
-  const v=pw.value;
-  if(!v.length){ph.style.color='';return;}
-  if(ok(v)){ph.style.color='var(--success)';ph.textContent='✅ Password meets requirements.';}
-  else{ph.style.color='var(--error)';ph.textContent='❌ Needs 8+ chars, uppercase, lowercase, number & symbol.';}
+const pw  = document.getElementById('password');
+const pc  = document.getElementById('confirm_password');
+const ph  = document.getElementById('pw_hint');
+const pm  = document.getElementById('pw_match');
+
+function strongPw(v){
+  return v.length>=8 && /[A-Z]/.test(v) && /[a-z]/.test(v) && /[0-9]/.test(v) && /[^A-Za-z0-9]/.test(v);
+}
+function update(){
+  const v = pw.value;
+  if(!v.length){ ph.style.color='rgba(255,255,255,0.4)'; ph.textContent='8+ characters, uppercase, lowercase, number and symbol.'; return; }
+  if(strongPw(v)){ ph.style.color='#6ee7b7'; ph.textContent='Password meets requirements.'; }
+  else { ph.style.color='#fca5a5'; ph.textContent='Needs 8+ chars, uppercase, lowercase, number and symbol.'; }
   if(pc.value.length){
-    pm.style.color=pc.value===v?'var(--success)':'var(--error)';
-    pm.textContent=pc.value===v?'✅ Passwords match.':'❌ Passwords do not match.';
+    if(pc.value===v){ pm.style.color='#6ee7b7'; pm.textContent='Passwords match.'; }
+    else { pm.style.color='#fca5a5'; pm.textContent='Passwords do not match.'; }
   }
 }
-pw.addEventListener('input',updP);pc.addEventListener('input',updP);
-document.querySelector('form').addEventListener('submit',e=>{if(!ok(pw.value)){e.preventDefault();updP();pw.focus();}});
+pw.addEventListener('input', update);
+pc.addEventListener('input', update);
+
+document.querySelector('form').addEventListener('submit', e => {
+  if(!strongPw(pw.value)){ e.preventDefault(); update(); pw.focus(); }
+  if(pw.value !== pc.value){ e.preventDefault(); update(); pc.focus(); }
+});
 </script>
 {% endblock %}
