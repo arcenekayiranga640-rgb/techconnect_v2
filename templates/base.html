@@ -8,15 +8,29 @@
         :root { --navy:#0d1b36; --navy-light:#1a2d52; --blue:#1a6ef5; --blue-light:#4da6ff; --blue-dark:#0d4db5; --bg:#f0f4f9; --text:#1c1c1c; --error:#c0392b; --success:#1e7e34; }
         * { box-sizing:border-box; }
         body { margin:0; font-family:'Segoe UI',Arial,sans-serif; background:var(--bg); color:var(--text); }
-        header { background:#0F172A; padding:14px 28px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 8px rgba(0,0,0,0.3); position:relative; z-index:100; }
-        .nav-cta-btn { background:#2563EB; color:white; border:none; padding:8px 16px; border-radius:8px; font-size:0.82rem; font-weight:700; cursor:pointer; text-decoration:none; transition:background 0.2s; white-space:nowrap; display:inline-flex; align-items:center; gap:6px; margin-right:4px; }
+        header { background:#0F172A; padding:12px 24px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 8px rgba(0,0,0,0.3); position:relative; z-index:100; }
+
+        /* ── Brand logo + stacked text ── */
+        .brand-link { display:flex; align-items:center; gap:10px; text-decoration:none; flex-shrink:0; }
+        .brand-logo { width:42px; height:42px; object-fit:contain; flex-shrink:0; }
+        .brand-text { display:flex; flex-direction:column; line-height:1.1; }
+        .brand-text span { font-size:1.15rem; font-weight:800; color:white; letter-spacing:0.3px; }
+        /* Desktop: show as one line */
+        @media(min-width:600px) {
+          .brand-text { flex-direction:row; gap:4px; align-items:baseline; }
+          .brand-text span { font-size:1.2rem; }
+        }
+
+        /* ── Language flags only — no text ── */
+        .lang-switcher { display:flex; align-items:center; gap:4px; }
+        .lang-switcher a { font-size:1.35rem; line-height:1; padding:3px 5px; border-radius:5px; text-decoration:none; opacity:0.55; transition:opacity 0.2s, background 0.2s; }
+        .lang-switcher a.active { opacity:1; background:rgba(255,255,255,0.12); }
+        .lang-switcher a:hover { opacity:1; }
+        .lang-divider { display:none; }
+
+        /* ── Sign Up pill button ── */
+        .nav-cta-btn { background:#2563EB; color:white; border:none; padding:8px 18px; border-radius:99px; font-size:0.82rem; font-weight:700; cursor:pointer; text-decoration:none; transition:background 0.2s; white-space:nowrap; display:inline-flex; align-items:center; }
         .nav-cta-btn:hover { background:#1d4ed8; color:white; }
-        .brand { font-size:1.2em; font-weight:700; color:white; letter-spacing:0.5px; }
-        .lang-switcher { display:flex; align-items:center; gap:6px; margin-right:12px; }
-        .lang-switcher a { font-size:0.82em; font-weight:700; padding:3px 8px; border-radius:4px; text-decoration:none; color:rgba(255,255,255,0.6); transition:all 0.2s; }
-        .lang-switcher a.active { background:var(--blue); color:white; }
-        .lang-switcher a:hover { color:white; }
-        .lang-divider { color:rgba(255,255,255,0.3); font-size:0.8em; }
         .hamburger-btn { background:none; border:none; cursor:pointer; padding:6px; display:flex; flex-direction:column; gap:5px; margin-top:0; }
         .hamburger-btn span { display:block; width:26px; height:3px; background:white; border-radius:3px; transition:background 0.2s; }
         .hamburger-btn:hover span { background:var(--blue-light); }
@@ -85,27 +99,32 @@
         .step-arrow { font-size:1.5em; color:var(--blue); align-self:center; flex-shrink:0; }
         .counter-section { background:var(--navy); border-radius:10px; padding:18px 28px; margin-top:16px; display:flex; align-items:center; justify-content:center; gap:10px; color:white; font-size:0.95em; }
         .counter-number { font-weight:700; font-size:1.4em; color:var(--blue-light); }
-        @media(max-width:560px) { .vision-cards{grid-template-columns:1fr;} .step-arrow{display:none;} .hero-content h1{font-size:1.5em;} }@media (max-width: 768px) {
-    body { overflow-x: hidden !important; }
-    header { width: 100% !important; box-sizing: border-box !important; flex-wrap: wrap !important; padding: 12px 16px !important; }
-}
+        @media(max-width:560px) { .vision-cards{grid-template-columns:1fr;} .step-arrow{display:none;} .hero-content h1{font-size:1.5em;} }
     </style>
 </head>
 <body>
     <header>
-        <a href="{{ url_for('home') }}" style="display:flex;align-items:center;gap:10px;text-decoration:none;">
-            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="TechConnect logo" style="width:42px;height:42px;object-fit:contain;">
-            <span class="brand">TechConnect</span>
-        </a>
-        <div style="display:flex;align-items:center;gap:8px;">
-            <div class="lang-switcher">
-                <a href="{{ url_for('set_lang', lang='en') }}" class="{% if lang == 'en' %}active{% endif %}">🇬🇧 EN</a>
-                <span class="lang-divider">|</span>
-                <a href="{{ url_for('set_lang', lang='fr') }}" class="{% if lang == 'fr' %}active{% endif %}">🇫🇷 FR</a>
+        <!-- Brand: square logo + "Tech" / "Connect" stacked on mobile, inline on desktop -->
+        <a href="{{ url_for('home') }}" class="brand-link">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="TechConnect logo" class="brand-logo">
+            <div class="brand-text">
+                <span>Tech</span>
+                <span>Connect</span>
             </div>
+        </a>
+
+        <!-- Right side: flags → Sign Up → Hamburger -->
+        <div style="display:flex;align-items:center;gap:8px;">
+            <!-- Language flags only — no text labels -->
+            <div class="lang-switcher">
+                <a href="{{ url_for('set_lang', lang='en') }}" class="{% if lang == 'en' %}active{% endif %}" title="English">🇬🇧</a>
+                <a href="{{ url_for('set_lang', lang='fr') }}" class="{% if lang == 'fr' %}active{% endif %}" title="Français">🇫🇷</a>
+            </div>
+            <!-- Compact pill Sign Up button -->
             {% if not technician %}
-            <a href="{{ url_for('register') }}" class="nav-cta-btn">✍️ {{ t.nav_signup }}</a>
+            <a href="{{ url_for('register') }}" class="nav-cta-btn">Sign Up</a>
             {% endif %}
+            <!-- Hamburger -->
             <button class="hamburger-btn" id="hamburgerBtn" aria-label="Open menu" aria-expanded="false">
                 <span></span><span></span><span></span>
             </button>
@@ -118,7 +137,7 @@
                 <a href="{{ url_for('my_profile') }}"><span class="menu-icon">👤</span> {{ t.nav_profile }}</a>
                 <a href="{{ url_for('logout') }}"><span class="menu-icon">🚪</span> {{ t.nav_logout }}</a>
             {% else %}
-                <a href="{{ url_for('register') }}"><span class="menu-icon">✍️</span> {{ t.nav_signup }}</a>
+                <a href="{{ url_for('register') }}"><span class="menu-icon">✍️</span> Sign Up as Technician</a>
                 <a href="{{ url_for('login') }}"><span class="menu-icon">🔑</span> {{ t.nav_login }}</a>
             {% endif %}
         </div>
