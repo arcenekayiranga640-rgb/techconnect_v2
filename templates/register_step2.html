@@ -2,8 +2,15 @@
 {% block title %}Sign Up — Professional Qualifications{% endblock %}
 {% block content %}
 <style>
-body{margin:0;font-family:"Segoe UI",Arial,sans-serif;}
-.wizard-bg{min-height:100vh;background:linear-gradient(135deg,#0F172A 0%,#1e3a5f 55%,#0d4db5 100%);padding:40px 20px 60px;}
+body{
+  margin:0;
+  font-family:"Segoe UI",Arial,sans-serif;
+  min-height:100vh;
+  background:linear-gradient(135deg,#0F172A 0%,#1e3a5f 55%,#0d4db5 100%);
+  background-attachment:fixed;
+}
+main,section,[role="main"]{background:transparent!important;}
+.wizard-bg{min-height:100vh;padding:40px 20px 60px;}
 .wizard-card{max-width:600px;margin:0 auto;background:rgba(255,255,255,0.10);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,0.20);border-radius:20px;padding:40px 44px;box-shadow:0 24px 48px rgba(0,0,0,0.35);}
 .wiz-title{color:white;font-size:1.55rem;font-weight:700;margin:0 0 6px;}
 .wiz-sub{color:rgba(255,255,255,0.6);font-size:0.87rem;margin:0 0 28px;line-height:1.5;}
