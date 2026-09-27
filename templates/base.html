@@ -10,15 +10,14 @@
         body { margin:0; font-family:'Segoe UI',Arial,sans-serif; background:var(--bg); color:var(--text); }
         header { background:#0F172A; padding:12px 24px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 8px rgba(0,0,0,0.3); position:relative; z-index:100; }
 
-        /* ── Brand logo + stacked text ── */
+        /* ── Brand logo + name ── */
         .brand-link { display:flex; align-items:center; gap:10px; text-decoration:none; flex-shrink:0; }
         .brand-logo { width:42px; height:42px; object-fit:contain; flex-shrink:0; }
-        .brand-text { display:flex; flex-direction:column; line-height:1.1; }
-        .brand-text span { font-size:1.15rem; font-weight:800; color:white; letter-spacing:0.3px; }
-        /* Desktop: show as one line */
+        .brand-name { font-size:1.15rem; font-weight:800; color:white; letter-spacing:0.3px; white-space:nowrap; }
+        /* Desktop: bigger logo + bigger name */
         @media(min-width:600px) {
-          .brand-text { flex-direction:row; gap:4px; align-items:baseline; }
-          .brand-text span { font-size:1.2rem; }
+          .brand-logo { width:58px; height:58px; }
+          .brand-name { font-size:1.4rem; letter-spacing:0.2px; }
         }
 
         /* ── Language flags only — no text ── */
@@ -107,10 +106,7 @@
         <!-- Brand: square logo + "Tech" / "Connect" stacked on mobile, inline on desktop -->
         <a href="{{ url_for('home') }}" class="brand-link">
             <img src="{{ url_for('static', filename='images/logo.png') }}" alt="TechConnect logo" class="brand-logo">
-            <div class="brand-text">
-                <span>Tech</span>
-                <span>Connect</span>
-            </div>
+            <span class="brand-name">TechConnect</span>
         </a>
 
         <!-- Right side: flags → Sign Up → Hamburger -->
