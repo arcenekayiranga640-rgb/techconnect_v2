@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Enter Reset Code — TechConnect{% endblock %}
+{% block content %}
+<style>
+body{margin:0;font-family:"Segoe UI",Arial,sans-serif;min-height:100vh;background:linear-gradient(135deg,#0F172A 0%,#1e3a5f 55%,#0d4db5 100%);background-attachment:fixed;}
+main,section,[role="main"]{background:transparent!important;}
+.wizard-bg{min-height:100vh;padding:60px 20px;}
+.wizard-card{max-width:460px;margin:0 auto;background:rgba(255,255,255,0.10);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,0.20);border-radius:20px;padding:40px 44px;box-shadow:0 24px 48px rgba(0,0,0,0.35);}
+.wiz-icon{font-size:2.5rem;text-align:center;margin-bottom:12px;}
+.wiz-title{color:white;font-size:1.5rem;font-weight:700;margin:0 0 6px;text-align:center;}
+.wiz-sub{color:rgba(255,255,255,0.6);font-size:0.86rem;margin:0 0 24px;text-align:center;line-height:1.6;}
+.email-badge{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:6px 12px;font-size:0.82rem;color:rgba(255,255,255,0.7);text-align:center;margin-bottom:20px;}
+label{display:block;margin-top:18px;margin-bottom:8px;font-weight:600;color:rgba(255,255,255,0.85);font-size:0.88rem;}
+.code-input{width:100%;padding:16px 14px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.22);border-radius:8px;font-size:2rem;font-weight:800;color:white;font-family:monospace;box-sizing:border-box;text-align:center;letter-spacing:12px;transition:border-color 0.2s;}
+.code-input::placeholder{color:rgba(255,255,255,0.25);letter-spacing:8px;font-size:1.2rem;font-weight:400;}
+.code-input:focus{outline:none;border-color:#4da6ff;background:rgba(255,255,255,0.18);}
+/* Countdown timer */
+.timer-wrap{text-align:center;margin:16px 0;}
+.timer-label{font-size:0.78rem;color:rgba(255,255,255,0.45);margin-bottom:4px;}
+#countdown{font-size:1.6rem;font-weight:800;color:#F59E0B;letter-spacing:2px;}
+#countdown.expired{color:#ef4444;}
+.timer-bar-bg{background:rgba(255,255,255,0.1);border-radius:99px;height:5px;margin-top:8px;overflow:hidden;}
+#timer-bar{background:#F59E0B;height:5px;border-radius:99px;transition:width 1s linear,background 1s;}
+.btn-submit{width:100%;margin-top:20px;background:#2563EB;color:white;border:none;padding:13px;border-radius:8px;font-size:0.95rem;font-weight:700;cursor:pointer;transition:background 0.2s;}
+.btn-submit:hover{background:#1d4ed8;}
+.btn-submit:disabled{background:rgba(37,99,235,0.4);cursor:not-allowed;}
+.resend-row{text-align:center;margin-top:16px;font-size:0.82rem;color:rgba(255,255,255,0.45);}
+.resend-row a{color:#4da6ff;font-weight:600;text-decoration:none;}
+.flash-msg{padding:11px 14px;border-radius:8px;margin-bottom:16px;font-size:0.85rem;font-weight:500;}
+.flash-error{background:rgba(239,68,68,0.2);color:#fca5a5;border:1px solid rgba(239,68,68,0.4);}
+.flash-success{background:rgba(16,185,129,0.2);color:#6ee7b7;border:1px solid rgba(16,185,129,0.4);}
+</style>
+
+<div class="wizard-bg">
+  <div class="wizard-card">
+    <div class="wiz-icon">📧</div>
+    <h1 class="wiz-title">Enter Reset Code</h1>
+    <p class="wiz-sub">We sent a 6-digit code to your email. Enter it below before it expires.</p>
+
+    {% if session.get('reset_email') %}
+    <div class="email-badge">📨 {{ session.get('reset_email') }}</div>
+    {% endif %}
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}{% for category, message in messages %}
+        <div class="flash-msg flash-{{ category }}">{{ message }}</div>
+      {% endfor %}{% endif %}
+    {% endwith %}
+
+    <!-- 5-minute countdown timer -->
+    <div class="timer-wrap">
+      <div class="timer-label">Code expires in</div>
+      <div id="countdown">05:00</div>
+      <div class="timer-bar-bg"><div id="timer-bar" style="width:100%;"></div></div>
+    </div>
+
+    <form method="POST" action="{{ url_for('verify_reset_code') }}" id="verify-form">
+      <label for="code">6-Digit Reset Code</label>
+      <input type="text" id="code" name="code"
+             class="code-input"
+             placeholder="000000"
+             maxlength="6" inputmode="numeric" pattern="[0-9]{6}"
+             autocomplete="one-time-code" required autofocus>
+      <button type="submit" class="btn-submit" id="submit-btn">Verify Code</button>
+    </form>
+
+    <div class="resend-row">
+      Didn't receive it? <a href="{{ url_for('forgot_password') }}">Send a new code</a>
+    </div>
+  </div>
+</div>
+
+<script>
+// 5-minute countdown (300 seconds)
+const TOTAL = 300;
+let remaining = TOTAL;
+const cdEl  = document.getElementById('countdown');
+const barEl = document.getElementById('timer-bar');
+const btnEl = document.getElementById('submit-btn');
+
+function fmt(s){ return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0'); }
+
+function tick(){
+  cdEl.textContent = fmt(remaining);
+  const pct = (remaining / TOTAL) * 100;
+  barEl.style.width = pct + '%';
+  // Colour shift: yellow → red in last 60s
+  const colour = remaining <= 60 ? '#ef4444' : remaining <= 120 ? '#f97316' : '#F59E0B';
+  barEl.style.background = colour;
+  cdEl.style.color = colour;
+  if(remaining <= 0){
+    cdEl.textContent = 'EXPIRED';
+    cdEl.classList.add('expired');
+    btnEl.disabled = true;
+    btnEl.textContent = 'Code Expired — Request a New One';
+    barEl.style.width = '0%';
+    clearInterval(timer);
+  }
+  remaining--;
+}
+tick();
+const timer = setInterval(tick, 1000);
+
+// Auto-submit when 6 digits entered
+document.getElementById('code').addEventListener('input', function(){
+  this.value = this.value.replace(/[^0-9]/g,'').slice(0,6);
+  if(this.value.length === 6 && remaining > 0){
+    document.getElementById('verify-form').submit();
+  }
+});
+</script>
+{% endblock %}

@@ -10,7 +10,10 @@
         <label for="password">{{ t.password_label }}</label>
         <input type="password" id="password" name="password" required>
         <button type="submit">{{ t.login_btn }}</button>
-    </form>
+      <div style="text-align:right;margin-top:8px;margin-bottom:4px;">
+    <a href="{{ url_for('forgot_password') }}" style="font-size:0.82rem;color:#2563EB;text-decoration:none;font-weight:500;">Forgot password?</a>
+  </div>
+</form>
     <p class="hint" style="margin-top:20px;">{{ t.no_profile }} <a href="{{ url_for('register') }}">{{ t.signup_link }}</a>.</p>
 </div>
 {% endblock %}

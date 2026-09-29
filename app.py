@@ -72,6 +72,24 @@ except ImportError:
     PORTAL_AVAILABLE = False
 
 app = Flask(__name__)
+
+# ── Flask-Mail (Password Reset) ───────────────────────────────────────────────
+try:
+    from flask_mail import Mail, Message as MailMessage
+    app.config["MAIL_SERVER"]          = "smtp.gmail.com"
+    app.config["MAIL_PORT"]            = 587
+    app.config["MAIL_USE_TLS"]         = True
+    app.config["MAIL_USERNAME"]        = "techconnectsupport13@gmail.com"
+    app.config["MAIL_PASSWORD"]        = "jmlyijvufeehlatj"
+    app.config["MAIL_DEFAULT_SENDER"]  = ("TechConnect Support", "techconnectsupport13@gmail.com")
+    mail = Mail(app)
+    MAIL_AVAILABLE = True
+except ImportError:
+    MAIL_AVAILABLE = False
+    mail = None
+    print("[MAIL] flask-mail not installed — email sending disabled. Run: pip install flask-mail")
+# ─────────────────────────────────────────────────────────────────────────────
+
 app.secret_key = "dev-secret-key-change-later"  # needed for sessions + flash messages
 
 BASE_DIR = os.path.dirname(__file__)
@@ -555,9 +573,17 @@ def init_db():
             certificate_filename TEXT,
             certificate_number TEXT,
             verification_status TEXT NOT NULL DEFAULT 'Pending Review',
-            created_at TEXT DEFAULT (datetime('now'))
+            created_at TEXT DEFAULT (datetime('now')),
+            reset_token TEXT DEFAULT NULL,
+            token_expiration TEXT DEFAULT NULL
         )
     """)
+    # Migrate existing databases — add columns if not already present
+    for col, defn in [("reset_token", "TEXT DEFAULT NULL"), ("token_expiration", "TEXT DEFAULT NULL")]:
+        try:
+            conn.execute(f"ALTER TABLE technicians ADD COLUMN {col} {defn}")
+        except Exception:
+            pass  # Already exists
     conn.execute("""
         CREATE TABLE IF NOT EXISTS payment_claims (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1339,6 +1365,169 @@ def admin_monthly_registrations():
     """).fetchall()
     conn.close()
     return jsonify([dict(r) for r in rows])
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PASSWORD RESET — 4-STEP FLOW
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    """Step 1 & 2 — Accept email, generate token, send reset email."""
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        if not email:
+            flash("Please enter your email address.", "error")
+            return render_template("forgot_password.html", t=get_t(), lang=get_lang(), technician=current_technician())
+
+        conn = get_db_connection()
+        tech = conn.execute("SELECT id, full_name FROM technicians WHERE email = ?", (email,)).fetchone()
+
+        if not tech:
+            # Don't reveal whether email exists — security best practice
+            flash("If that email is registered, you will receive a reset code shortly.", "info")
+            conn.close()
+            return render_template("forgot_password.html", t=get_t(), lang=get_lang(), technician=current_technician())
+
+        # Generate 6-digit OTP code
+        reset_token = str(secrets.randbelow(900000) + 100000)
+        expiration  = (datetime.utcnow() + timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+
+        conn.execute(
+            "UPDATE technicians SET reset_token = ?, token_expiration = ? WHERE id = ?",
+            (reset_token, expiration, tech["id"])
+        )
+        conn.commit()
+        conn.close()
+
+        # Send email
+        email_sent = False
+        if MAIL_AVAILABLE and mail:
+            try:
+                msg = MailMessage(
+                    subject="TechConnect — Your Password Reset Code",
+                    recipients=[email],
+                    html=f"""
+                    <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;">
+                      <div style="background:#0F172A;padding:20px 28px;border-radius:12px 12px 0 0;">
+                        <h2 style="color:white;margin:0;">⚡ TechConnect</h2>
+                      </div>
+                      <div style="background:#f8fafc;padding:28px;border-radius:0 0 12px 12px;border:1px solid #e2e8f0;">
+                        <p style="color:#0F172A;font-size:1rem;">Hello <strong>{tech['full_name']}</strong>,</p>
+                        <p style="color:#475569;">Use the code below to reset your password. This code expires in <strong>5 minutes</strong>.</p>
+                        <div style="background:#0F172A;border-radius:10px;padding:20px;text-align:center;margin:24px 0;">
+                          <span style="color:white;font-size:2.2rem;font-weight:800;letter-spacing:8px;">{reset_token}</span>
+                        </div>
+                        <p style="color:#94a3b8;font-size:0.82rem;">If you did not request this, you can safely ignore this email. Your account remains secure.</p>
+                        <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
+                        <p style="color:#94a3b8;font-size:0.78rem;margin:0;">The Tech Connection &nbsp;·&nbsp; Kigali, Rwanda</p>
+                      </div>
+                    </div>
+                    """
+                )
+                mail.send(msg)
+                email_sent = True
+                print(f"[MAIL] Reset code {reset_token} sent to {email}", flush=True)
+            except Exception as e:
+                print(f"[MAIL ERROR] {e}", flush=True)
+
+        if not email_sent:
+            # Dev fallback — print code to terminal
+            print(f"[DEV RESET CODE] Email: {email} | Code: {reset_token} | Expires: {expiration}", flush=True)
+
+        # Store email in session for next steps
+        session["reset_email"] = email
+        flash("A 6-digit reset code has been sent to your email. It expires in 5 minutes.", "success")
+        return redirect(url_for("verify_reset_code"))
+
+    return render_template("forgot_password.html", t=get_t(), lang=get_lang(), technician=current_technician())
+
+
+@app.route("/verify-reset-code", methods=["GET", "POST"])
+def verify_reset_code():
+    """Step 3 — Verify the 6-digit OTP code."""
+    if not session.get("reset_email"):
+        return redirect(url_for("forgot_password"))
+
+    if request.method == "POST":
+        entered_code = request.form.get("code", "").strip()
+        email        = session.get("reset_email", "")
+
+        if not entered_code:
+            flash("Please enter the 6-digit code from your email.", "error")
+            return render_template("verify_code.html", t=get_t(), lang=get_lang(), technician=current_technician())
+
+        conn = get_db_connection()
+        tech = conn.execute(
+            "SELECT id, reset_token, token_expiration FROM technicians WHERE email = ?", (email,)
+        ).fetchone()
+        conn.close()
+
+        if not tech or not tech["reset_token"]:
+            flash("No reset request found. Please start over.", "error")
+            session.pop("reset_email", None)
+            return redirect(url_for("forgot_password"))
+
+        # Check expiration
+        try:
+            expiry = datetime.strptime(tech["token_expiration"], "%Y-%m-%d %H:%M:%S")
+        except (TypeError, ValueError):
+            flash("Invalid token data. Please request a new code.", "error")
+            return redirect(url_for("forgot_password"))
+
+        if datetime.utcnow() > expiry:
+            flash("Your code has expired. Please request a new one.", "error")
+            session.pop("reset_email", None)
+            return redirect(url_for("forgot_password"))
+
+        if entered_code != tech["reset_token"]:
+            flash("Incorrect code. Please check your email and try again.", "error")
+            return render_template("verify_code.html", t=get_t(), lang=get_lang(), technician=current_technician())
+
+        # Code verified — allow password reset
+        session["reset_verified"] = True
+        return redirect(url_for("reset_password"))
+
+    return render_template("verify_code.html", t=get_t(), lang=get_lang(), technician=current_technician())
+
+
+@app.route("/reset-password", methods=["GET", "POST"])
+def reset_password():
+    """Step 4 — Set new password and clear the reset token."""
+    if not session.get("reset_email") or not session.get("reset_verified"):
+        return redirect(url_for("forgot_password"))
+
+    if request.method == "POST":
+        password         = request.form.get("password", "")
+        confirm_password = request.form.get("confirm_password", "")
+        email            = session.get("reset_email", "")
+
+        if not is_strong_password(password):
+            flash("Password must be 8+ characters with uppercase, lowercase, number and symbol.", "error")
+            return render_template("reset_password.html", t=get_t(), lang=get_lang(), technician=current_technician())
+
+        if password != confirm_password:
+            flash("Passwords do not match.", "error")
+            return render_template("reset_password.html", t=get_t(), lang=get_lang(), technician=current_technician())
+
+        password_hash = generate_password_hash(password)
+        conn = get_db_connection()
+        conn.execute(
+            "UPDATE technicians SET password_hash = ?, reset_token = NULL, token_expiration = NULL WHERE email = ?",
+            (password_hash, email)
+        )
+        conn.commit()
+        conn.close()
+
+        # Clear reset session keys
+        session.pop("reset_email", None)
+        session.pop("reset_verified", None)
+
+        flash("Your password has been reset successfully. You can now log in.", "success")
+        return redirect(url_for("login"))
+
+    return render_template("reset_password.html", t=get_t(), lang=get_lang(), technician=current_technician())
+
 
 # ══════════════════════════════════════════════════════
 # LEGAL & POLICY PAGES
