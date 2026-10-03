@@ -39,6 +39,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import sqlite3
 import os
+import secrets
+from datetime import datetime, timedelta
 import json
 import uuid
 import re
@@ -1380,27 +1382,46 @@ def forgot_password():
             flash("Please enter your email address.", "error")
             return render_template("forgot_password.html", t=get_t(), lang=get_lang(), technician=current_technician())
 
-        conn = get_db_connection()
-        tech = conn.execute("SELECT id, full_name FROM technicians WHERE email = ?", (email,)).fetchone()
+        conn = None
+        try:
+            conn = get_db_connection()
 
-        if not tech:
-            # Don't reveal whether email exists — security best practice
-            flash("If that email is registered, you will receive a reset code shortly.", "info")
-            conn.close()
+            # Ensure reset columns exist on Render (in case migration didn't run)
+            for col, defn in [("reset_token", "TEXT DEFAULT NULL"), ("token_expiration", "TEXT DEFAULT NULL")]:
+                try:
+                    conn.execute(f"ALTER TABLE technicians ADD COLUMN {col} {defn}")
+                    conn.commit()
+                except Exception:
+                    pass  # Column already exists
+
+            tech = conn.execute(
+                "SELECT id, full_name FROM technicians WHERE email = ?", (email,)
+            ).fetchone()
+
+            if not tech:
+                # Don't reveal whether email exists — security best practice
+                flash("If that email is registered, you will receive a reset code shortly.", "info")
+                return render_template("forgot_password.html", t=get_t(), lang=get_lang(), technician=current_technician())
+
+            # Generate 6-digit OTP code
+            reset_token = str(secrets.randbelow(900000) + 100000)
+            expiration  = (datetime.utcnow() + timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+
+            conn.execute(
+                "UPDATE technicians SET reset_token = ?, token_expiration = ? WHERE id = ?",
+                (reset_token, expiration, tech["id"])
+            )
+            conn.commit()
+
+        except Exception as db_err:
+            print(f"[FORGOT PW DB ERROR] {db_err}", flush=True)
+            flash("A temporary error occurred. Please try again.", "error")
             return render_template("forgot_password.html", t=get_t(), lang=get_lang(), technician=current_technician())
+        finally:
+            if conn:
+                conn.close()
 
-        # Generate 6-digit OTP code
-        reset_token = str(secrets.randbelow(900000) + 100000)
-        expiration  = (datetime.utcnow() + timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
-
-        conn.execute(
-            "UPDATE technicians SET reset_token = ?, token_expiration = ? WHERE id = ?",
-            (reset_token, expiration, tech["id"])
-        )
-        conn.commit()
-        conn.close()
-
-        # Send email
+        # Send email — wrapped so mail failure never causes a 500
         email_sent = False
         if MAIL_AVAILABLE and mail:
             try:
@@ -1410,7 +1431,7 @@ def forgot_password():
                     html=f"""
                     <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;">
                       <div style="background:#0F172A;padding:20px 28px;border-radius:12px 12px 0 0;">
-                        <h2 style="color:white;margin:0;">⚡ TechConnect</h2>
+                        <h2 style="color:white;margin:0;">TechConnect</h2>
                       </div>
                       <div style="background:#f8fafc;padding:28px;border-radius:0 0 12px 12px;border:1px solid #e2e8f0;">
                         <p style="color:#0F172A;font-size:1rem;">Hello <strong>{tech['full_name']}</strong>,</p>
@@ -1418,21 +1439,21 @@ def forgot_password():
                         <div style="background:#0F172A;border-radius:10px;padding:20px;text-align:center;margin:24px 0;">
                           <span style="color:white;font-size:2.2rem;font-weight:800;letter-spacing:8px;">{reset_token}</span>
                         </div>
-                        <p style="color:#94a3b8;font-size:0.82rem;">If you did not request this, you can safely ignore this email. Your account remains secure.</p>
+                        <p style="color:#94a3b8;font-size:0.82rem;">If you did not request this, you can safely ignore this email.</p>
                         <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
-                        <p style="color:#94a3b8;font-size:0.78rem;margin:0;">The Tech Connection &nbsp;·&nbsp; Kigali, Rwanda</p>
+                        <p style="color:#94a3b8;font-size:0.78rem;margin:0;">The Tech Connection &nbsp;&middot;&nbsp; Kigali, Rwanda</p>
                       </div>
                     </div>
                     """
                 )
                 mail.send(msg)
                 email_sent = True
-                print(f"[MAIL] Reset code {reset_token} sent to {email}", flush=True)
-            except Exception as e:
-                print(f"[MAIL ERROR] {e}", flush=True)
+                print(f"[MAIL] Reset code sent to {email}", flush=True)
+            except Exception as mail_err:
+                print(f"[MAIL ERROR] {mail_err}", flush=True)
+                # Mail failed — still continue, code is in DB
 
         if not email_sent:
-            # Dev fallback — print code to terminal
             print(f"[DEV RESET CODE] Email: {email} | Code: {reset_token} | Expires: {expiration}", flush=True)
 
         # Store email in session for next steps
