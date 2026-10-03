@@ -1421,40 +1421,56 @@ def forgot_password():
             if conn:
                 conn.close()
 
-        # Send email — wrapped so mail failure never causes a 500
+        # Send email in a background thread with a hard 8-second timeout
+        # so a hanging SMTP connection NEVER blocks the Render web worker.
         email_sent = False
         if MAIL_AVAILABLE and mail:
-            try:
-                msg = MailMessage(
-                    subject="TechConnect — Your Password Reset Code",
-                    recipients=[email],
-                    html=f"""
-                    <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;">
-                      <div style="background:#0F172A;padding:20px 28px;border-radius:12px 12px 0 0;">
-                        <h2 style="color:white;margin:0;">TechConnect</h2>
-                      </div>
-                      <div style="background:#f8fafc;padding:28px;border-radius:0 0 12px 12px;border:1px solid #e2e8f0;">
-                        <p style="color:#0F172A;font-size:1rem;">Hello <strong>{tech['full_name']}</strong>,</p>
-                        <p style="color:#475569;">Use the code below to reset your password. This code expires in <strong>5 minutes</strong>.</p>
-                        <div style="background:#0F172A;border-radius:10px;padding:20px;text-align:center;margin:24px 0;">
-                          <span style="color:white;font-size:2.2rem;font-weight:800;letter-spacing:8px;">{reset_token}</span>
-                        </div>
-                        <p style="color:#94a3b8;font-size:0.82rem;">If you did not request this, you can safely ignore this email.</p>
-                        <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
-                        <p style="color:#94a3b8;font-size:0.78rem;margin:0;">The Tech Connection &nbsp;&middot;&nbsp; Kigali, Rwanda</p>
-                      </div>
-                    </div>
-                    """
-                )
-                mail.send(msg)
+            import threading
+            result = {"sent": False, "error": None}
+
+            def send_mail_thread():
+                try:
+                    with app.app_context():
+                        msg = MailMessage(
+                            subject="TechConnect — Your Password Reset Code",
+                            recipients=[email],
+                            html=f"""
+                            <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;">
+                              <div style="background:#0F172A;padding:20px 28px;border-radius:12px 12px 0 0;">
+                                <h2 style="color:white;margin:0;">TechConnect</h2>
+                              </div>
+                              <div style="background:#f8fafc;padding:28px;border-radius:0 0 12px 12px;border:1px solid #e2e8f0;">
+                                <p style="color:#0F172A;font-size:1rem;">Hello <strong>{tech["full_name"]}</strong>,</p>
+                                <p style="color:#475569;">Use the code below to reset your password. It expires in <strong>5 minutes</strong>.</p>
+                                <div style="background:#0F172A;border-radius:10px;padding:20px;text-align:center;margin:24px 0;">
+                                  <span style="color:white;font-size:2.2rem;font-weight:800;letter-spacing:8px;">{reset_token}</span>
+                                </div>
+                                <p style="color:#94a3b8;font-size:0.82rem;">If you did not request this, you can safely ignore this email.</p>
+                                <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
+                                <p style="color:#94a3b8;font-size:0.78rem;margin:0;">The Tech Connection &nbsp;&middot;&nbsp; Kigali, Rwanda</p>
+                              </div>
+                            </div>
+                            """
+                        )
+                        mail.send(msg)
+                        result["sent"] = True
+                except Exception as e:
+                    result["error"] = str(e)
+
+            t = threading.Thread(target=send_mail_thread, daemon=True)
+            t.start()
+            t.join(timeout=8)  # Wait max 8 seconds — then move on regardless
+
+            if result["sent"]:
                 email_sent = True
                 print(f"[MAIL] Reset code sent to {email}", flush=True)
-            except Exception as mail_err:
-                print(f"[MAIL ERROR] {mail_err}", flush=True)
-                # Mail failed — still continue, code is in DB
+            elif t.is_alive():
+                print(f"[MAIL TIMEOUT] SMTP connection timed out after 8s — code logged below", flush=True)
+            else:
+                print(f"[MAIL ERROR] {result['error']}", flush=True)
 
-        if not email_sent:
-            print(f"[DEV RESET CODE] Email: {email} | Code: {reset_token} | Expires: {expiration}", flush=True)
+        # Always log to console so code is recoverable from Render logs
+        print(f"[RESET CODE] Email={email} | Code={reset_token} | Expires={expiration}", flush=True)
 
         # Store email in session for next steps
         session["reset_email"] = email
