@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Platform Feedback — TechConnect{% endblock %}
+{% block content %}
+<style>
+body{margin:0;min-height:100vh;background:linear-gradient(135deg,#0F172A 0%,#1e3a5f 55%,#0d4db5 100%);background-attachment:fixed;}
+main,section,[role="main"]{background:transparent!important;}
+.fb-page{min-height:100vh;padding:60px 20px;}
+.fb-card{max-width:520px;margin:0 auto;background:rgba(255,255,255,0.10);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,0.20);border-radius:20px;padding:40px 44px;box-shadow:0 24px 48px rgba(0,0,0,0.35);}
+.fb-icon{font-size:2.5rem;text-align:center;margin-bottom:12px;}
+.fb-title{color:white;font-size:1.5rem;font-weight:700;margin:0 0 6px;text-align:center;}
+.fb-sub{color:rgba(255,255,255,0.6);font-size:0.86rem;margin:0 0 28px;text-align:center;line-height:1.6;}
+label{display:block;margin-top:16px;margin-bottom:6px;font-weight:600;color:rgba(255,255,255,0.85);font-size:0.88rem;}
+.star-selector{display:flex;gap:8px;flex-direction:row-reverse;justify-content:flex-end;margin-bottom:4px;}
+.star-selector input{display:none;}
+.star-selector label{font-size:2rem;color:rgba(255,255,255,0.25);cursor:pointer;margin:0;padding:0;line-height:1;}
+.star-selector input:checked ~ label,.star-selector label:hover,.star-selector label:hover ~ label{color:#f59e0b;}
+textarea{width:100%;padding:12px 14px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.22);border-radius:8px;font-size:0.92rem;color:white;font-family:inherit;box-sizing:border-box;resize:vertical;}
+textarea::placeholder{color:rgba(255,255,255,0.35);}
+textarea:focus{outline:none;border-color:#4da6ff;background:rgba(255,255,255,0.18);}
+.btn-submit{width:100%;margin-top:24px;background:#2563eb;color:white;border:none;padding:13px;border-radius:8px;font-size:0.95rem;font-weight:700;cursor:pointer;transition:background 0.2s;}
+.btn-submit:hover{background:#1d4ed8;}
+.flash-msg{padding:11px 14px;border-radius:8px;margin-bottom:16px;font-size:0.85rem;font-weight:500;}
+.flash-error{background:rgba(239,68,68,0.2);color:#fca5a5;border:1px solid rgba(239,68,68,0.4);}
+.flash-success{background:rgba(16,185,129,0.2);color:#6ee7b7;border:1px solid rgba(16,185,129,0.4);}
+.back-link{display:block;text-align:center;margin-top:18px;color:rgba(255,255,255,0.5);font-size:0.83rem;}
+.back-link a{color:#4da6ff;font-weight:600;text-decoration:none;}
+</style>
+<div class="fb-page">
+  <div class="fb-card">
+    <div class="fb-icon">💬</div>
+    <h1 class="fb-title">Share Your Feedback</h1>
+    <p class="fb-sub">Help us improve TechConnect for Rwanda's technical workforce. Your opinion matters.</p>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}{% for cat, msg in messages %}
+        <div class="flash-msg flash-{{ cat }}">{{ msg }}</div>
+      {% endfor %}{% endif %}
+    {% endwith %}
+    <form method="POST" action="{{ url_for('site_feedback') }}">
+      <label>How would you rate TechConnect? *</label>
+      <div class="star-selector">
+        {% for i in [5,4,3,2,1] %}
+        <input type="radio" name="rating" id="fb{{ i }}" value="{{ i }}" {% if i==5 %}required{% endif %}>
+        <label for="fb{{ i }}" title="{{ i }} stars">★</label>
+        {% endfor %}
+      </div>
+      <label for="comment">Your Comments</label>
+      <textarea id="comment" name="comment" rows="4" maxlength="500"
+        placeholder="What do you love? What could be improved? How has TechConnect helped you?"></textarea>
+      <button type="submit" class="btn-submit">Submit Feedback</button>
+    </form>
+    <div class="back-link"><a href="{{ url_for('home') }}">← Back to Home</a></div>
+  </div>
+</div>
+{% endblock %}

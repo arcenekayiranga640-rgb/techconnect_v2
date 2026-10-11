@@ -3,7 +3,7 @@
 {% block content %}
 <style>
 .profile-page{max-width:720px;margin:0 auto;padding:32px 20px 60px;}
-.profile-card{background:#ffffff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06),0 4px 16px rgba(0,0,0,0.06);overflow:hidden;}
+.profile-card{background:#ffffff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06),0 4px 16px rgba(0,0,0,0.06);overflow:hidden;margin-bottom:20px;}
 .profile-banner{background:linear-gradient(135deg,#0F172A,#1e3a5f);padding:32px 32px 64px;position:relative;}
 .profile-banner-title{color:rgba(255,255,255,0.5);font-size:0.75rem;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin:0 0 4px;}
 .profile-avatar-wrap{position:absolute;bottom:-40px;left:32px;}
@@ -15,6 +15,7 @@
 .badge-blue{background:#dbeafe;color:#1e40af;}
 .badge-green{background:#d1fae5;color:#065f46;}
 .badge-amber{background:#fef3c7;color:#92400e;}
+.badge-red{background:#fee2e2;color:#991b1b;}
 .profile-name{font-size:1.45rem;font-weight:700;color:#0f172a;margin:0 0 4px;line-height:1.2;}
 .meta-row{display:flex;align-items:flex-start;gap:10px;font-size:0.87rem;color:#4b5563;margin-bottom:9px;}
 .meta-icon{font-size:0.95rem;flex-shrink:0;margin-top:1px;}
@@ -32,8 +33,39 @@
 .btn-edit:hover{background:#1d4ed8;color:white;}
 .btn-delete{background:white;color:#ef4444;border:1px solid #fca5a5;padding:11px 22px;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;transition:all 0.2s;}
 .btn-delete:hover{background:#fef2f2;border-color:#ef4444;}
+/* Availability toggle */
+.avail-toggle{display:flex;align-items:center;gap:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 16px;margin-bottom:20px;}
+.toggle-switch{position:relative;width:46px;height:26px;flex-shrink:0;}
+.toggle-switch input{opacity:0;width:0;height:0;}
+.toggle-slider{position:absolute;cursor:pointer;inset:0;background:#d1d5db;border-radius:99px;transition:background 0.3s;}
+.toggle-slider:before{content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;background:white;border-radius:50%;transition:transform 0.3s;box-shadow:0 1px 3px rgba(0,0,0,0.2);}
+input:checked + .toggle-slider{background:#10b981;}
+input:checked + .toggle-slider:before{transform:translateX(20px);}
+.avail-label{font-size:0.88rem;font-weight:600;}
+/* Portfolio section */
+.section-card{background:white;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,0.06),0 4px 16px rgba(0,0,0,0.05);padding:22px 28px;margin-bottom:20px;}
+.section-heading{font-size:1rem;font-weight:700;color:#0f172a;margin:0 0 16px;}
+.portfolio-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:16px;}
+.port-item{border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);position:relative;}
+.port-item img{width:100%;height:130px;object-fit:cover;display:block;}
+.port-caption{padding:6px 8px;font-size:0.75rem;color:#374151;background:white;}
+.btn-del-img{position:absolute;top:6px;right:6px;background:rgba(239,68,68,0.85);color:white;border:none;border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:700;cursor:pointer;}
+.upload-form{background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:8px;}
+.upload-form label{font-size:0.82rem;font-weight:600;color:#374151;}
+.upload-form input[type=file]{font-size:0.83rem;color:#374151;}
+.upload-form input[type=text]{padding:8px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:0.85rem;}
+.btn-upload{background:#2563eb;color:white;border:none;padding:9px 20px;border-radius:7px;font-size:0.85rem;font-weight:700;cursor:pointer;transition:background 0.2s;align-self:flex-start;}
+.btn-upload:hover{background:#1d4ed8;}
+/* Reviews */
+.review-item{padding:12px 0;border-bottom:1px solid #f1f5f9;}
+.review-item:last-child{border-bottom:none;}
+.review-stars{color:#f59e0b;font-size:0.85rem;}
+.review-author{font-size:0.82rem;font-weight:600;color:#374151;}
+.review-date{font-size:0.75rem;color:#94a3b8;}
+.review-comment{font-size:0.83rem;color:#475569;margin-top:4px;line-height:1.55;}
 @media(max-width:520px){.profile-body{padding:52px 20px 24px;}.profile-banner{padding:24px 20px 56px;}.profile-avatar-wrap{left:20px;}.action-row{flex-direction:column;}.btn-edit,.btn-delete{text-align:center;justify-content:center;}}
 </style>
+
 <div class="profile-page">
   <div class="profile-card">
     <div class="profile-banner">
@@ -51,14 +83,31 @@
         <span class="badge badge-blue">{{ technician.skill_category }}</span>
         {% if technician.verification_status == 'Verified' %}<span class="badge badge-green">✓ Verified</span>
         {% elif technician.certificate_filename %}<span class="badge badge-amber">⏳ Pending Review</span>{% endif %}
+        {% if technician.is_available %}<span class="badge badge-green">● Available for Hire</span>
+        {% else %}<span class="badge badge-red">● Currently Booked</span>{% endif %}
+        {% if technician.review_count and technician.review_count > 0 %}
+          <span class="badge badge-amber">★ {{ technician.avg_rating }} ({{ technician.review_count }})</span>
+        {% endif %}
       </div>
       <h1 class="profile-name">{{ technician.full_name }}</h1>
-      <p style="font-size:0.88rem;color:#6b7280;margin:0 0 20px;">
+      <p style="font-size:0.88rem;color:#6b7280;margin:0 0 16px;">
         {% if technician.qualification_type == 'Degree / Advanced Diploma (L6+)' %}{{ technician.degree_level }} in {{ technician.degree }}
         {% elif technician.qualification_type == 'Advanced TVET Certificate V (L5)' %}Advanced TVET Certificate V (L5) in {{ technician.degree }}
         {% else %}{{ technician.qualification_type }} in {{ technician.degree }}{% endif %}
       </p>
       <div class="meta-row"><span class="meta-icon">📍</span><span>{{ technician.sector }}, {{ technician.district }}, {{ technician.province }}</span></div>
+
+      <!-- Availability toggle -->
+      <div class="avail-toggle">
+        <label class="toggle-switch">
+          <input type="checkbox" id="availToggle" {% if technician.is_available %}checked{% endif %}>
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="avail-label" id="availLabel">
+          {% if technician.is_available %}Available for Hire{% else %}Currently Booked{% endif %}
+        </span>
+      </div>
+
       {% if technician.bio %}<hr class="divider"><div class="bio-box">{{ technician.bio }}</div>{% endif %}
       <hr class="divider">
       <div class="contact-box">
@@ -82,5 +131,60 @@
       </div>
     </div>
   </div>
+
+  <!-- Portfolio section -->
+  <div class="section-card">
+    <h2 class="section-heading">📸 My Portfolio ({{ portfolio|length }})</h2>
+    {% if portfolio %}
+    <div class="portfolio-grid">
+      {% for img in portfolio %}
+      <div class="port-item">
+        <img src="{{ url_for('static', filename=img.image_url) }}" alt="{{ img.caption or 'Portfolio image' }}">
+        {% if img.caption %}<div class="port-caption">{{ img.caption }}</div>{% endif %}
+        <form method="POST" action="{{ url_for('portfolio_delete', image_id=img.id) }}" style="display:inline;" onsubmit="return confirm('Remove this image?');">
+          <button type="submit" class="btn-del-img">✕</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    <form method="POST" action="{{ url_for('portfolio_upload') }}" enctype="multipart/form-data" class="upload-form">
+      <label>Upload a new image (JPG, PNG, WEBP — max 5MB)</label>
+      <input type="file" name="portfolio_image" accept=".jpg,.jpeg,.png,.webp" required>
+      <input type="text" name="caption" placeholder="Short caption (optional, max 140 chars)" maxlength="140">
+      <button type="submit" class="btn-upload">Upload Image</button>
+    </form>
+  </div>
+
+  <!-- Reviews -->
+  {% if reviews %}
+  <div class="section-card">
+    <h2 class="section-heading">⭐ Client Reviews ({{ reviews|length }})</h2>
+    {% for rv in reviews %}
+    <div class="review-item">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="review-author">{{ rv.client_name }}</span>
+        <span class="review-date">{{ rv.created_at[:10] }}</span>
+      </div>
+      <div class="review-stars">{% for i in range(rv.rating) %}★{% endfor %}</div>
+      {% if rv.comment %}<p class="review-comment">{{ rv.comment }}</p>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
 </div>
+
+<script>
+const toggle = document.getElementById('availToggle');
+const label  = document.getElementById('availLabel');
+toggle.addEventListener('change', async () => {
+  try {
+    const res  = await fetch('/toggle-availability', {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}});
+    const data = await res.json();
+    if(data.is_available !== undefined){
+      label.textContent = data.label;
+    }
+  } catch(e){ console.error(e); }
+});
+</script>
 {% endblock %}

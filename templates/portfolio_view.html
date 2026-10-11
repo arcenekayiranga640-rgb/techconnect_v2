@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}{{ tech.full_name }} — Portfolio{% endblock %}
+{% block content %}
+<style>
+.pv-page{max-width:820px;margin:0 auto;padding:32px 20px 60px;}
+.pv-header{background:white;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,0.06),0 4px 16px rgba(0,0,0,0.05);padding:24px 28px;margin-bottom:20px;display:flex;align-items:center;gap:18px;}
+.pv-avatar{width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;flex-shrink:0;}
+.pv-avatar-ph{width:72px;height:72px;border-radius:50%;background:#2563eb;color:white;display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:800;flex-shrink:0;}
+.pv-name{font-size:1.3rem;font-weight:700;color:#0f172a;margin:0 0 4px;}
+.pv-sub{font-size:0.84rem;color:#6b7280;margin:0 0 8px;}
+.badge-row{display:flex;flex-wrap:wrap;gap:6px;}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:99px;}
+.badge-blue{background:#dbeafe;color:#1e40af;}
+.badge-green{background:#d1fae5;color:#065f46;}
+.badge-amber{background:#fef3c7;color:#92400e;}
+.badge-red{background:#fee2e2;color:#991b1b;}
+.stars{color:#f59e0b;font-size:0.9rem;}
+.section-title{font-size:0.75rem;font-weight:700;color:#6b7280;letter-spacing:1px;text-transform:uppercase;margin:0 0 14px;}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-bottom:28px;}
+.gallery-card{background:white;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.07),0 4px 12px rgba(0,0,0,0.05);}
+.gallery-card img{width:100%;height:180px;object-fit:cover;display:block;}
+.gallery-caption{padding:10px 12px;font-size:0.82rem;color:#374151;}
+.no-portfolio{background:#f8fafc;border:1px dashed #cbd5e1;border-radius:12px;padding:40px;text-align:center;color:#94a3b8;margin-bottom:24px;}
+.review-card{background:white;border-radius:12px;padding:16px 18px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+.review-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.review-author{font-weight:600;color:#0f172a;font-size:0.88rem;}
+.review-date{font-size:0.76rem;color:#94a3b8;}
+.review-comment{font-size:0.85rem;color:#475569;line-height:1.6;margin:0;}
+.review-form-card{background:white;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,0.06),0 4px 16px rgba(0,0,0,0.05);padding:24px 28px;margin-bottom:20px;}
+.review-form-card h3{font-size:1rem;font-weight:700;color:#0f172a;margin:0 0 16px;}
+label{display:block;font-size:0.83rem;font-weight:600;color:#374151;margin-bottom:5px;margin-top:14px;}
+input[type=text],textarea{width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.88rem;color:#0f172a;font-family:inherit;box-sizing:border-box;}
+input[type=text]:focus,textarea:focus{outline:none;border-color:#2563eb;}
+textarea{resize:vertical;}
+.star-selector{display:flex;gap:6px;flex-direction:row-reverse;justify-content:flex-end;}
+.star-selector input{display:none;}
+.star-selector label{font-size:1.6rem;color:#d1d5db;cursor:pointer;margin:0;padding:0;line-height:1;}
+.star-selector input:checked ~ label,.star-selector label:hover,.star-selector label:hover ~ label{color:#f59e0b;}
+.btn-review{background:#2563eb;color:white;border:none;padding:11px 28px;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;margin-top:16px;transition:background 0.2s;}
+.btn-review:hover{background:#1d4ed8;}
+.btn-back{background:white;border:1px solid #e2e8f0;color:#6b7280;padding:9px 18px;border-radius:8px;font-size:0.85rem;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:6px;margin-bottom:16px;transition:all 0.2s;}
+.btn-back:hover{border-color:#9ca3af;color:#374151;}
+@media(max-width:500px){.pv-header{flex-direction:column;align-items:flex-start;}.gallery{grid-template-columns:1fr 1fr;}}
+</style>
+
+<div class="pv-page">
+  <a href="{{ url_for('list_technicians') }}" class="btn-back">← Back to Search</a>
+
+  <!-- Profile header -->
+  <div class="pv-header">
+    {% if tech.photo_filename %}
+      <img class="pv-avatar" src="{{ url_for('static', filename='uploads/photos/' + tech.photo_filename) }}" alt="{{ tech.full_name }}">
+    {% else %}
+      <div class="pv-avatar-ph">{{ tech.full_name[0]|upper }}</div>
+    {% endif %}
+    <div>
+      <h1 class="pv-name">{{ tech.full_name }}</h1>
+      <p class="pv-sub">{{ tech.skill_category }} · {{ tech.sector }}, {{ tech.district }}</p>
+      <div class="badge-row">
+        {% if tech.is_available %}<span class="badge badge-green">● Available for Hire</span>
+        {% else %}<span class="badge badge-red">● Currently Booked</span>{% endif %}
+        {% if tech.verification_status == 'Verified' %}<span class="badge badge-blue">✓ Verified</span>{% endif %}
+        {% if tech.review_count > 0 %}
+          <span class="badge badge-amber">
+            <span class="stars">{% for i in range(tech.avg_rating|int) %}★{% endfor %}</span>
+            {{ tech.avg_rating }} ({{ tech.review_count }})
+          </span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Portfolio gallery -->
+  <p class="section-title">Work Portfolio</p>
+  {% if images %}
+    <div class="gallery">
+      {% for img in images %}
+      <div class="gallery-card">
+        <img src="{{ url_for('static', filename=img.image_url) }}" alt="{{ img.caption or 'Portfolio image' }}">
+        {% if img.caption %}<p class="gallery-caption">{{ img.caption }}</p>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="no-portfolio">
+      <p style="font-size:1.5rem;margin-bottom:6px;">📂</p>
+      <p>No portfolio images uploaded yet.</p>
+    </div>
+  {% endif %}
+
+  <!-- Reviews -->
+  <p class="section-title">Client Reviews ({{ reviews|length if reviews else 0 }})</p>
+  {% set reviews_list = reviews if reviews is defined else [] %}
+  {% for review in reviews_list %}
+  <div class="review-card">
+    <div class="review-header">
+      <span class="review-author">{{ review.client_name }}</span>
+      <span class="review-date">{{ review.created_at[:10] }}</span>
+    </div>
+    <div class="stars" style="margin-bottom:6px;">{% for i in range(review.rating) %}★{% endfor %}</div>
+    {% if review.comment %}<p class="review-comment">{{ review.comment }}</p>{% endif %}
+  </div>
+  {% else %}
+  <div class="no-portfolio" style="margin-bottom:20px;">
+    <p>No reviews yet — be the first to leave feedback!</p>
+  </div>
+  {% endfor %}
+
+  <!-- Leave a review -->
+  <div class="review-form-card">
+    <h3>Leave a Review</h3>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}{% for cat, msg in messages %}
+        <div style="padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:0.85rem;font-weight:500;
+          background:{% if cat=='error' %}#fee2e2{% else %}#d1fae5{% endif %};
+          color:{% if cat=='error' %}#991b1b{% else %}#065f46{% endif %};">{{ msg }}</div>
+      {% endfor %}{% endif %}
+    {% endwith %}
+    <form method="POST" action="{{ url_for('submit_review', tech_id=tech.id) }}">
+      <label>Your Rating *</label>
+      <div class="star-selector">
+        {% for i in [5,4,3,2,1] %}
+        <input type="radio" name="rating" id="star{{ i }}" value="{{ i }}" {% if i==5 %}required{% endif %}>
+        <label for="star{{ i }}" title="{{ i }} stars">★</label>
+        {% endfor %}
+      </div>
+      <label for="client_name">Your Name</label>
+      <input type="text" id="client_name" name="client_name" placeholder="e.g. Jean-Pierre" maxlength="60">
+      <label for="comment">Your Review</label>
+      <textarea id="comment" name="comment" rows="3" placeholder="Share your experience..." maxlength="500"></textarea>
+      <button type="submit" class="btn-review">Submit Review</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

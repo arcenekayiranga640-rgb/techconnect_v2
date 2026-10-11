@@ -41,10 +41,14 @@
 .badge-blue{background:#dbeafe;color:#1e40af;}
 .badge-green{background:#d1fae5;color:#065f46;}
 .badge-amber{background:#fef3c7;color:#92400e;}
+.badge-red{background:#fee2e2;color:#991b1b;}
 .tc-name{font-size:1.1rem;font-weight:700;color:#0f172a;margin:0 0 4px;}
 .tc-qual{font-size:0.83rem;color:#6b7280;margin:0 0 8px;}
-.tc-location{display:flex;align-items:center;gap:6px;font-size:0.84rem;color:#6b7280;margin-bottom:10px;}
+.tc-location{display:flex;align-items:center;gap:6px;font-size:0.84rem;color:#6b7280;margin-bottom:8px;}
 .tc-bio{font-size:0.83rem;color:#6b7280;font-style:italic;margin-bottom:10px;line-height:1.55;}
+.tc-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.btn-portfolio{background:white;color:#2563eb;border:1px solid #bfdbfe;padding:6px 14px;border-radius:7px;font-size:0.79rem;font-weight:700;text-decoration:none;transition:all 0.2s;}
+.btn-portfolio:hover{background:#eff6ff;}
 .contact-revealed{display:flex;flex-wrap:wrap;gap:14px;font-size:0.85rem;color:#0f172a;}
 .contact-revealed span{display:flex;align-items:center;gap:5px;}
 .contact-locked{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:4px;}
@@ -54,37 +58,23 @@
 .btn-pay:hover{background:#1d4ed8;color:white;}
 .empty-state{text-align:center;padding:48px 24px;background:white;border-radius:14px;color:#6b7280;font-size:0.92rem;}
 .empty-state a{color:#2563eb;font-weight:600;text-decoration:none;}
-@media(max-width:540px){
-.tech-card{flex-direction:column;gap:14px;}
-.tc-avatar,.tc-avatar-placeholder{width:52px;height:52px;font-size:1.2rem;}
-.search-card{padding:18px 16px;}
-.access-banner{flex-direction:column;align-items:flex-start;}
-.btn-unlock{width:100%;text-align:center;}
-.contact-locked{flex-direction:column;}
-.btn-pay{width:100%;text-align:center;}
-}
+.stars{color:#f59e0b;font-size:0.78rem;}
+@media(max-width:540px){.tech-card{flex-direction:column;gap:14px;}.tc-avatar,.tc-avatar-placeholder{width:52px;height:52px;font-size:1.2rem;}.search-card{padding:18px 16px;}.access-banner{flex-direction:column;align-items:flex-start;}.btn-unlock{width:100%;text-align:center;}.contact-locked{flex-direction:column;}.btn-pay{width:100%;text-align:center;}}
 </style>
 
 <div class="find-page">
-
 {% if has_access %}
 <div class="access-banner active">
   <div class="access-banner-left">
     <div class="access-banner-icon">✅</div>
-    <div>
-      <p class="access-banner-title">Contact Access Active</p>
-      <p class="access-banner-sub">{{ t.access_active }} <strong id="accessCountdown"></strong></p>
-    </div>
+    <div><p class="access-banner-title">Contact Access Active</p><p class="access-banner-sub">{{ t.access_active }} <strong id="accessCountdown"></strong></p></div>
   </div>
 </div>
 {% else %}
 <div class="access-banner locked">
   <div class="access-banner-left">
     <div class="access-banner-icon">🔒</div>
-    <div>
-      <p class="access-banner-title">Contact Details Are Hidden</p>
-      <p class="access-banner-sub">Pay 200 RWF for 24-hour access to all technician contacts.</p>
-    </div>
+    <div><p class="access-banner-title">Contact Details Are Hidden</p><p class="access-banner-sub">Pay 200 RWF for 24-hour access to all technician contacts.</p></div>
   </div>
   <a href="{{ url_for('pay') }}" class="btn-unlock">Unlock — 200 RWF</a>
 </div>
@@ -100,72 +90,49 @@
         <option value="{{ category }}" {% if search_skill == category %}selected{% endif %}>{{ category }}</option>
       {% endfor %}
     </select>
-    <div style="margin-top:12px;">
-      <button type="button" id="toggleBtn" class="btn-location-toggle">
-        {% if search_province or search_district or search_sector %}{{ t.hide_location }}{% else %}{{ t.filter_location }}{% endif %}
-      </button>
-    </div>
+    <div style="margin-top:12px;"><button type="button" id="toggleBtn" class="btn-location-toggle">{% if search_province or search_district or search_sector %}{{ t.hide_location }}{% else %}{{ t.filter_location }}{% endif %}</button></div>
     <div id="locationFilters" style="{% if not search_province and not search_district and not search_sector %}display:none;{% endif %}margin-top:14px;">
       <label for="province">{{ t.province_label }}</label>
-      <select name="province" id="province">
-        <option value="">{{ t.all_provinces }}</option>
-        {% for prov in provinces %}
-          <option value="{{ prov }}" {% if search_province == prov %}selected{% endif %}>{{ prov }}</option>
-        {% endfor %}
-      </select>
+      <select name="province" id="province"><option value="">{{ t.all_provinces }}</option>{% for prov in provinces %}<option value="{{ prov }}" {% if search_province == prov %}selected{% endif %}>{{ prov }}</option>{% endfor %}</select>
       <label for="district" style="margin-top:12px;">{{ t.district_label }}</label>
-      <select name="district" id="district" {% if not search_province %}disabled{% endif %}>
-        <option value="">{% if search_province %}{{ t.all_districts }}{% else %}{{ t.select_province }}{% endif %}</option>
-        {% if search_province and search_district %}<option value="{{ search_district }}" selected>{{ search_district }}</option>{% endif %}
-      </select>
+      <select name="district" id="district" {% if not search_province %}disabled{% endif %}><option value="">{% if search_province %}{{ t.all_districts }}{% else %}{{ t.select_province }}{% endif %}</option>{% if search_province and search_district %}<option value="{{ search_district }}" selected>{{ search_district }}</option>{% endif %}</select>
       <label for="sector" style="margin-top:12px;">{{ t.sector_label }}</label>
-      <select name="sector" id="sector" {% if not search_district %}disabled{% endif %}>
-        <option value="">{% if search_district %}{{ t.all_sectors }}{% else %}{{ t.select_district }}{% endif %}</option>
-        {% if search_district and search_sector %}<option value="{{ search_sector }}" selected>{{ search_sector }}</option>{% endif %}
-      </select>
+      <select name="sector" id="sector" {% if not search_district %}disabled{% endif %}><option value="">{% if search_district %}{{ t.all_sectors }}{% else %}{{ t.select_district }}{% endif %}</option>{% if search_district and search_sector %}<option value="{{ search_sector }}" selected>{{ search_sector }}</option>{% endif %}</select>
     </div>
     <div style="display:flex;gap:10px;margin-top:18px;">
       <button type="submit" class="btn-search">{{ t.search_btn }}</button>
-      {% if search_skill or search_province or search_district or search_sector %}
-        <a href="{{ url_for('list_technicians') }}" class="btn-clear">{{ t.clear_btn }}</a>
-      {% endif %}
+      {% if search_skill or search_province or search_district or search_sector %}<a href="{{ url_for('list_technicians') }}" class="btn-clear">{{ t.clear_btn }}</a>{% endif %}
     </div>
   </form>
 </div>
 
 <div class="results-summary">
-  {% if search_skill or search_province or search_district or search_sector %}
-    {{ t.showing }}
-    {% if search_skill %}<strong>{{ search_skill }}</strong>{% endif %}
-    {% if search_province %} in <strong>{{ search_province }}</strong>{% endif %}
-    {% if search_district %} › <strong>{{ search_district }}</strong>{% endif %}
-    {% if search_sector %} › <strong>{{ search_sector }}</strong>{% endif %} —
-  {% else %}{{ t.showing_all }} —{% endif %}
-  <strong>{{ technicians|length }}</strong> {{ t.found }}
+  {% if search_skill or search_province or search_district or search_sector %}{{ t.showing }}{% if search_skill %} <strong>{{ search_skill }}</strong>{% endif %}{% if search_province %} in <strong>{{ search_province }}</strong>{% endif %}{% if search_district %} › <strong>{{ search_district }}</strong>{% endif %}{% if search_sector %} › <strong>{{ search_sector }}</strong>{% endif %} —{% else %}{{ t.showing_all }} —{% endif %} <strong>{{ technicians|length }}</strong> {{ t.found }}
 </div>
 
 {% if technicians %}
   {% for tech in technicians %}
   <div class="tech-card">
-    {% if tech.photo_filename %}
-      <img class="tc-avatar" src="{{ url_for('static', filename='uploads/photos/' + tech.photo_filename) }}" alt="{{ tech.full_name }}">
-    {% else %}
-      <div class="tc-avatar-placeholder">{{ tech.full_name[0]|upper }}</div>
-    {% endif %}
+    {% if tech.photo_filename %}<img class="tc-avatar" src="{{ url_for('static', filename='uploads/photos/' + tech.photo_filename) }}" alt="{{ tech.full_name }}">
+    {% else %}<div class="tc-avatar-placeholder">{{ tech.full_name[0]|upper }}</div>{% endif %}
     <div class="tc-body">
       <div class="badge-row">
         <span class="badge badge-blue">{{ tech.skill_category }}</span>
-        {% if tech.verification_status == 'Verified' %}<span class="badge badge-green">✓ Verified</span>
-        {% elif tech.certificate_filename %}<span class="badge badge-amber">⏳ Pending Review</span>{% endif %}
+        {% if tech.is_available %}<span class="badge badge-green">● Available</span>
+        {% else %}<span class="badge badge-red">● Booked</span>{% endif %}
+        {% if tech.verification_status == 'Verified' %}<span class="badge badge-green">✓ Verified</span>{% endif %}
+        {% if tech.review_count and tech.review_count > 0 %}<span class="badge badge-amber"><span class="stars">{% for i in range(tech.avg_rating|int) %}★{% endfor %}</span> {{ tech.avg_rating }} ({{ tech.review_count }})</span>{% endif %}
       </div>
       <h3 class="tc-name">{{ tech.full_name }}</h3>
-      <p class="tc-qual">
-        {% if tech.qualification_type == 'Degree / Advanced Diploma (L6+)' %}{{ tech.degree_level }} in {{ tech.degree }}
-        {% elif tech.qualification_type == 'Advanced TVET Certificate V (L5)' %}Advanced TVET Certificate V (L5) in {{ tech.degree }}
-        {% else %}{{ tech.qualification_type }} in {{ tech.degree }}{% endif %}
-      </p>
+      <p class="tc-qual">{% if tech.qualification_type == 'Degree / Advanced Diploma (L6+)' %}{{ tech.degree_level }} in {{ tech.degree }}{% elif tech.qualification_type == 'Advanced TVET Certificate V (L5)' %}Advanced TVET Certificate V (L5) in {{ tech.degree }}{% else %}{{ tech.qualification_type }} in {{ tech.degree }}{% endif %}</p>
       <div class="tc-location"><span>📍</span><span><strong>{{ tech.sector }}</strong>, {{ tech.district }}, {{ tech.province }}</span></div>
       {% if tech.bio %}<p class="tc-bio">{{ tech.bio }}</p>{% endif %}
+      <div class="tc-actions">
+        {% if port_counts.get(tech.id, 0) > 0 %}
+        <a href="{{ url_for('portfolio_view', tech_id=tech.id) }}" class="btn-portfolio">📸 View Portfolio ({{ port_counts.get(tech.id, 0) }})</a>
+        {% endif %}
+        <a href="{{ url_for('portfolio_view', tech_id=tech.id) }}" class="btn-portfolio">⭐ Reviews ({{ tech.review_count or 0 }})</a>
+      </div>
       {% if has_access %}
         <div class="contact-revealed">
           <span>📞 <strong>{{ tech.phone }}</strong></span>
@@ -174,11 +141,7 @@
         </div>
       {% else %}
         <div class="contact-locked">
-          <div class="contact-locked-left">
-            <span>📞 ••••••••••</span>
-            {% if tech.whatsapp %}<span>💬 ••••••••••</span>{% endif %}
-            {% if tech.email %}<span>✉️ ••••@••••</span>{% endif %}
-          </div>
+          <div class="contact-locked-left"><span>📞 ••••••••••</span>{% if tech.whatsapp %}<span>💬 ••••••••••</span>{% endif %}{% if tech.email %}<span>✉️ ••••@••••</span>{% endif %}</div>
           <a href="{{ url_for('pay') }}" class="btn-pay">🔓 {{ t.unlock_contact }}</a>
         </div>
       {% endif %}
@@ -186,36 +149,21 @@
   </div>
   {% endfor %}
 {% else %}
-  <div class="empty-state">
-    <p style="font-size:1.5rem;margin-bottom:8px;">🔍</p>
-    <p>{{ t.no_technicians }} {{ t.try_removing }}</p>
-    <p style="margin-top:8px;"><a href="{{ url_for('register') }}">{{ t.signup_first }}</a></p>
-  </div>
+  <div class="empty-state"><p style="font-size:1.5rem;margin-bottom:8px;">🔍</p><p>{{ t.no_technicians }} {{ t.try_removing }}</p><p style="margin-top:8px;"><a href="{{ url_for('register') }}">{{ t.signup_first }}</a></p></div>
 {% endif %}
-
 </div>
 
 <script>
-const toggleBtn=document.getElementById('toggleBtn');
-const locationFilters=document.getElementById('locationFilters');
-const openText="{{ t.filter_location }}";
-const closeText="{{ t.hide_location }}";
+const toggleBtn=document.getElementById('toggleBtn'),locationFilters=document.getElementById('locationFilters');
+const openText="{{ t.filter_location }}",closeText="{{ t.hide_location }}";
 toggleBtn.addEventListener('click',()=>{const o=locationFilters.style.display!=='none';locationFilters.style.display=o?'none':'block';toggleBtn.textContent=o?openText:closeText;});
 const prov=document.getElementById('province'),dist=document.getElementById('district'),sect=document.getElementById('sector');
-const PD="{{ search_district }}",PS="{{ search_sector }}";
-const ADT="{{ t.all_districts }}",AST="{{ t.all_sectors }}",SPT="{{ t.select_province }}",SDT="{{ t.select_district }}";
-async function loadDist(province,pre){if(!province){dist.innerHTML=`<option value="">${SPT}</option>`;dist.disabled=true;sect.innerHTML=`<option value="">${SDT}</option>`;sect.disabled=true;return;}const r=await fetch('/api/districts?province='+encodeURIComponent(province));const d=await r.json();dist.innerHTML=`<option value="">${ADT}</option>`+d.map(x=>`<option value="${x}" ${x===pre?'selected':''}>${x}</option>`).join('');dist.disabled=false;}
-async function loadSect(province,district,pre){if(!district){sect.innerHTML=`<option value="">${SDT}</option>`;sect.disabled=true;return;}const r=await fetch('/api/sectors?province='+encodeURIComponent(province)+'&district='+encodeURIComponent(district));const s=await r.json();sect.innerHTML=`<option value="">${AST}</option>`+s.map(x=>`<option value="${x}" ${x===pre?'selected':''}>${x}</option>`).join('');sect.disabled=false;}
+const PD="{{ search_district }}",PS="{{ search_sector }}",ADT="{{ t.all_districts }}",AST="{{ t.all_sectors }}",SPT="{{ t.select_province }}",SDT="{{ t.select_district }}";
+async function loadDist(p,pre){if(!p){dist.innerHTML=`<option value="">${SPT}</option>`;dist.disabled=true;sect.innerHTML=`<option value="">${SDT}</option>`;sect.disabled=true;return;}const r=await fetch('/api/districts?province='+encodeURIComponent(p));const d=await r.json();dist.innerHTML=`<option value="">${ADT}</option>`+d.map(x=>`<option value="${x}" ${x===pre?'selected':''}>${x}</option>`).join('');dist.disabled=false;}
+async function loadSect(p,di,pre){if(!di){sect.innerHTML=`<option value="">${SDT}</option>`;sect.disabled=true;return;}const r=await fetch('/api/sectors?province='+encodeURIComponent(p)+'&district='+encodeURIComponent(di));const s=await r.json();sect.innerHTML=`<option value="">${AST}</option>`+s.map(x=>`<option value="${x}" ${x===pre?'selected':''}>${x}</option>`).join('');sect.disabled=false;}
 prov.addEventListener('change',()=>{loadDist(prov.value,'');sect.innerHTML=`<option value="">${SDT}</option>`;sect.disabled=true;});
-dist.addEventListener('change',()=>{loadSect(prov.value,dist.value,'');});
+dist.addEventListener('change',()=>loadSect(prov.value,dist.value,''));
 window.addEventListener('DOMContentLoaded',async()=>{if(prov.value){await loadDist(prov.value,PD);if(PD)await loadSect(prov.value,PD,PS);}});
-{% if has_access %}
-let s={{ access_seconds }};
-const cd=document.getElementById('accessCountdown');
-const ex="{{ t.expired }}";
-function fmt(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;return `${h}h ${m}m ${sc}s`;}
-function tick(){if(s<=0){cd.textContent=ex;return;}cd.textContent=fmt(s);s--;setTimeout(tick,1000);}
-tick();
-{% endif %}
+{% if has_access %}let s={{ access_seconds }};const cd=document.getElementById('accessCountdown'),ex="{{ t.expired }}";function fmt(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;return `${h}h ${m}m ${sc}s`;}function tick(){if(s<=0){cd.textContent=ex;return;}cd.textContent=fmt(s);s--;setTimeout(tick,1000);}tick();{% endif %}
 </script>
 {% endblock %}

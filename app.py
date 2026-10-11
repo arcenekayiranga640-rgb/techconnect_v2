@@ -580,8 +580,45 @@ def init_db():
             token_expiration TEXT DEFAULT NULL
         )
     """)
-    # Migrate existing databases — add columns if not already present
-    for col, defn in [("reset_token", "TEXT DEFAULT NULL"), ("token_expiration", "TEXT DEFAULT NULL")]:
+    # ── New tables ──────────────────────────────────────────────────────────
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS portfolio_images (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            technician_id INTEGER NOT NULL,
+            image_url     TEXT NOT NULL,
+            caption       TEXT DEFAULT '',
+            created_at    TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (technician_id) REFERENCES technicians(id) ON DELETE CASCADE
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS reviews (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            technician_id INTEGER NOT NULL,
+            client_name   TEXT NOT NULL DEFAULT 'Anonymous',
+            rating        INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),
+            comment       TEXT DEFAULT '',
+            created_at    TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (technician_id) REFERENCES technicians(id) ON DELETE CASCADE
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS site_feedback (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            rating     INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),
+            comment    TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    """)
+
+    # ── Migrate existing technicians table ───────────────────────────────────
+    for col, defn in [
+        ("reset_token",    "TEXT DEFAULT NULL"),
+        ("token_expiration","TEXT DEFAULT NULL"),
+        ("is_available",   "INTEGER DEFAULT 1"),
+        ("avg_rating",     "REAL DEFAULT 0"),
+        ("review_count",   "INTEGER DEFAULT 0"),
+    ]:
         try:
             conn.execute(f"ALTER TABLE technicians ADD COLUMN {col} {defn}")
         except Exception:
@@ -941,7 +978,19 @@ def my_profile():
     if not tech:
         flash("Please log in to view your profile.", "error")
         return redirect(url_for("login"))
-    return render_template("my_profile.html", technician=tech)
+    conn = get_db_connection()
+    portfolio = conn.execute(
+        "SELECT * FROM portfolio_images WHERE technician_id = ? ORDER BY created_at DESC",
+        (tech["id"],)
+    ).fetchall()
+    reviews = conn.execute(
+        "SELECT * FROM reviews WHERE technician_id = ? ORDER BY created_at DESC",
+        (tech["id"],)
+    ).fetchall()
+    conn.close()
+    return render_template("my_profile.html",
+        technician=tech, portfolio=portfolio, reviews=reviews,
+        t=get_t(), lang=get_lang())
 
 
 @app.route("/my-profile/edit", methods=["GET", "POST"])
@@ -1225,10 +1274,20 @@ def list_technicians():
 
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
-    query += " ORDER BY created_at DESC"
+    # Sort: available first, then by avg_rating desc, then newest
+    query += " ORDER BY is_available DESC, avg_rating DESC, created_at DESC"
 
     conn = get_db_connection()
     technicians = conn.execute(query, params).fetchall()
+
+    # Get portfolio image counts per technician for "View Portfolio" button
+    port_counts = {}
+    if technicians:
+        ids = ",".join(str(t["id"]) for t in technicians)
+        rows = conn.execute(
+            f"SELECT technician_id, COUNT(*) AS cnt FROM portfolio_images WHERE technician_id IN ({ids}) GROUP BY technician_id"
+        ).fetchall()
+        port_counts = {r["technician_id"]: r["cnt"] for r in rows}
     conn.close()
 
     return render_template(
@@ -1242,6 +1301,7 @@ def list_technicians():
         search_sector=search_sector,
         has_access=client_has_access(),
         access_seconds=access_expires_in(),
+        port_counts=port_counts,
     )
 
 
@@ -1564,6 +1624,179 @@ def reset_password():
         return redirect(url_for("login"))
 
     return render_template("reset_password.html", t=get_t(), lang=get_lang(), technician=current_technician())
+
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# FEATURE 1 — AVAILABILITY TOGGLE
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route("/toggle-availability", methods=["POST"])
+def toggle_availability():
+    """Flip is_available between 0 and 1 for the logged-in technician."""
+    tech = current_technician()
+    if not tech:
+        return jsonify({"error": "Not logged in"}), 401
+    conn = get_db_connection()
+    new_val = 0 if tech["is_available"] else 1
+    conn.execute("UPDATE technicians SET is_available = ? WHERE id = ?", (new_val, tech["id"]))
+    conn.commit()
+    conn.close()
+    label = "Available for Hire" if new_val else "Currently Booked"
+    return jsonify({"is_available": new_val, "label": label})
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# FEATURE 2 — PORTFOLIO UPLOAD & DELETE
+# ══════════════════════════════════════════════════════════════════════════════
+
+UPLOAD_PORTFOLIO_DIR = os.path.join(BASE_DIR, "static", "uploads", "portfolio")
+os.makedirs(UPLOAD_PORTFOLIO_DIR, exist_ok=True)
+ALLOWED_PORTFOLIO_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+
+@app.route("/portfolio/upload", methods=["POST"])
+def portfolio_upload():
+    """Upload one portfolio image with an optional caption."""
+    tech = current_technician()
+    if not tech:
+        flash("Please log in first.", "error")
+        return redirect(url_for("login"))
+
+    image_file = request.files.get("portfolio_image")
+    caption    = request.form.get("caption", "").strip()[:140]
+
+    if not image_file or not image_file.filename:
+        flash("Please select an image to upload.", "error")
+        return redirect(url_for("my_profile"))
+
+    filename = save_upload(image_file, UPLOAD_PORTFOLIO_DIR, ALLOWED_PORTFOLIO_EXT)
+    if not filename:
+        flash("Invalid file — please use JPG, PNG, or WEBP under 5 MB.", "error")
+        return redirect(url_for("my_profile"))
+
+    image_url = f"uploads/portfolio/{filename}"
+    conn = get_db_connection()
+    conn.execute(
+        "INSERT INTO portfolio_images (technician_id, image_url, caption) VALUES (?, ?, ?)",
+        (tech["id"], image_url, caption)
+    )
+    conn.commit()
+    conn.close()
+    flash("Portfolio image uploaded successfully.", "success")
+    return redirect(url_for("my_profile"))
+
+
+@app.route("/portfolio/delete/<int:image_id>", methods=["POST"])
+def portfolio_delete(image_id):
+    """Delete one portfolio image (owner only)."""
+    tech = current_technician()
+    if not tech:
+        return redirect(url_for("login"))
+    conn = get_db_connection()
+    row = conn.execute(
+        "SELECT * FROM portfolio_images WHERE id = ? AND technician_id = ?",
+        (image_id, tech["id"])
+    ).fetchone()
+    if row:
+        # Remove file from disk
+        full_path = os.path.join(BASE_DIR, "static", row["image_url"])
+        try:
+            if os.path.exists(full_path):
+                os.remove(full_path)
+        except Exception:
+            pass
+        conn.execute("DELETE FROM portfolio_images WHERE id = ?", (image_id,))
+        conn.commit()
+        flash("Image removed from your portfolio.", "success")
+    conn.close()
+    return redirect(url_for("my_profile"))
+
+
+@app.route("/portfolio/<int:tech_id>")
+def portfolio_view(tech_id):
+    """Public portfolio page for a technician."""
+    conn = get_db_connection()
+    tech   = conn.execute("SELECT * FROM technicians WHERE id = ?", (tech_id,)).fetchone()
+    images = conn.execute(
+        "SELECT * FROM portfolio_images WHERE technician_id = ? ORDER BY created_at DESC",
+        (tech_id,)
+    ).fetchall()
+    conn.close()
+    if not tech:
+        flash("Technician not found.", "error")
+        return redirect(url_for("list_technicians"))
+    return render_template("portfolio_view.html",
+        tech=tech, images=images,
+        t=get_t(), lang=get_lang(), technician=current_technician())
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# FEATURE 3 — REVIEWS & SITE FEEDBACK
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route("/review/<int:tech_id>", methods=["POST"])
+def submit_review(tech_id):
+    """Submit a star rating + written review for a technician."""
+    client_name = request.form.get("client_name", "Anonymous").strip()[:60] or "Anonymous"
+    comment     = request.form.get("comment", "").strip()[:500]
+    try:
+        rating = int(request.form.get("rating", 0))
+        if rating < 1 or rating > 5:
+            raise ValueError
+    except (ValueError, TypeError):
+        flash("Please select a rating between 1 and 5 stars.", "error")
+        return redirect(url_for("portfolio_view", tech_id=tech_id))
+
+    conn = get_db_connection()
+    # Check technician exists
+    tech = conn.execute("SELECT id FROM technicians WHERE id = ?", (tech_id,)).fetchone()
+    if not tech:
+        conn.close()
+        flash("Technician not found.", "error")
+        return redirect(url_for("list_technicians"))
+
+    conn.execute(
+        "INSERT INTO reviews (technician_id, client_name, rating, comment) VALUES (?, ?, ?, ?)",
+        (tech_id, client_name, rating, comment)
+    )
+    # Update denormalised avg_rating + review_count on technician row
+    stats = conn.execute(
+        "SELECT COUNT(*) AS cnt, AVG(rating) AS avg FROM reviews WHERE technician_id = ?",
+        (tech_id,)
+    ).fetchone()
+    conn.execute(
+        "UPDATE technicians SET review_count = ?, avg_rating = ? WHERE id = ?",
+        (stats["cnt"], round(stats["avg"], 1), tech_id)
+    )
+    conn.commit()
+    conn.close()
+    flash("Thank you for your feedback!", "success")
+    return redirect(url_for("portfolio_view", tech_id=tech_id))
+
+
+@app.route("/feedback", methods=["GET", "POST"])
+def site_feedback():
+    """General platform feedback page."""
+    if request.method == "POST":
+        comment = request.form.get("comment", "").strip()[:500]
+        try:
+            rating = int(request.form.get("rating", 0))
+            if rating < 1 or rating > 5:
+                raise ValueError
+        except (ValueError, TypeError):
+            flash("Please select a rating between 1 and 5 stars.", "error")
+            return render_template("site_feedback.html",
+                t=get_t(), lang=get_lang(), technician=current_technician())
+        conn = get_db_connection()
+        conn.execute(
+            "INSERT INTO site_feedback (rating, comment) VALUES (?, ?)", (rating, comment)
+        )
+        conn.commit()
+        conn.close()
+        flash("Thank you for helping us improve TechConnect!", "success")
+        return redirect(url_for("home"))
+    return render_template("site_feedback.html",
+        t=get_t(), lang=get_lang(), technician=current_technician())
 
 
 # ══════════════════════════════════════════════════════
