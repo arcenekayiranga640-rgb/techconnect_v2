@@ -1825,3 +1825,19 @@ def cookie_policy():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, port=5001)
+
+
+def init_db():
+    import sqlite3
+    conn = sqlite3.connect('techconnect')
+    cursor = conn.cursor()
+    cursor.execute("CREATE TABLE IF NOT EXISTS portfolio_images (id INTEGER PRIMARY KEY AUTOINCREMENT, technician_id INTEGER, image_url TEXT, caption TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, technician_id INTEGER, client_name TEXT, rating INTEGER, comment TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN is_available INTEGER DEFAULT 1")
+    except:
+        pass
+    conn.commit()
+    conn.close()
+
+init_db()
