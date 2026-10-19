@@ -550,6 +550,22 @@ with open(LOCATIONS_PATH, encoding="utf-8") as f:
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    # ── Auto-migrate on every connection ────────────────────────────────────
+    # On Render's ephemeral filesystem the DB may be recreated between deploys.
+    # Running ALTER TABLE here guarantees every column exists before any query.
+    _REQUIRED = [
+        ("technicians", "reset_token",      "TEXT DEFAULT NULL"),
+        ("technicians", "token_expiration", "TEXT DEFAULT NULL"),
+        ("technicians", "is_available",     "INTEGER DEFAULT 1"),
+        ("technicians", "avg_rating",       "REAL DEFAULT 0"),
+        ("technicians", "review_count",     "INTEGER DEFAULT 0"),
+    ]
+    for _tbl, _col, _defn in _REQUIRED:
+        try:
+            conn.execute(f"ALTER TABLE {_tbl} ADD COLUMN {_col} {_defn}")
+            conn.commit()
+        except Exception:
+            pass  # Column already exists
     return conn
 
 
@@ -1275,19 +1291,35 @@ def list_technicians():
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
     # Sort: available first, then by avg_rating desc, then newest
-    query += " ORDER BY is_available DESC, avg_rating DESC, created_at DESC"
+    query += " ORDER BY COALESCE(is_available,1) DESC, COALESCE(avg_rating,0) DESC, created_at DESC"
 
     conn = get_db_connection()
-    technicians = conn.execute(query, params).fetchall()
+    try:
+        technicians = conn.execute(query, params).fetchall()
+    except Exception as qe:
+        print(f"[LIST_TECHNICIANS ERROR] {qe}", flush=True)
+        # Fallback: try without ORDER BY columns that may not exist yet
+        fallback_query = query.replace(
+            "ORDER BY COALESCE(is_available,1) DESC, COALESCE(avg_rating,0) DESC, created_at DESC",
+            "ORDER BY created_at DESC"
+        )
+        try:
+            technicians = conn.execute(fallback_query, params).fetchall()
+        except Exception as fe:
+            print(f"[LIST_TECHNICIANS FALLBACK ERROR] {fe}", flush=True)
+            technicians = []
 
     # Get portfolio image counts per technician for "View Portfolio" button
     port_counts = {}
-    if technicians:
-        ids = ",".join(str(t["id"]) for t in technicians)
-        rows = conn.execute(
-            f"SELECT technician_id, COUNT(*) AS cnt FROM portfolio_images WHERE technician_id IN ({ids}) GROUP BY technician_id"
-        ).fetchall()
-        port_counts = {r["technician_id"]: r["cnt"] for r in rows}
+    try:
+        if technicians:
+            ids = ",".join(str(t["id"]) for t in technicians)
+            rows = conn.execute(
+                f"SELECT technician_id, COUNT(*) AS cnt FROM portfolio_images WHERE technician_id IN ({ids}) GROUP BY technician_id"
+            ).fetchall()
+            port_counts = {r["technician_id"]: r["cnt"] for r in rows}
+    except Exception:
+        port_counts = {}
     conn.close()
 
     return render_template(
@@ -1825,83 +1857,3 @@ def cookie_policy():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, port=5001)
-
-
-def init_db():
-    import sqlite3
-    conn = sqlite3.connect('techconnect')
-    cursor = conn.cursor()
-    cursor.execute("CREATE TABLE IF NOT EXISTS portfolio_images (id INTEGER PRIMARY KEY AUTOINCREMENT, technician_id INTEGER, image_url TEXT, caption TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, technician_id INTEGER, client_name TEXT, rating INTEGER, comment TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN is_available INTEGER DEFAULT 1")
-    except:
-        pass
-    conn.commit()
-    conn.close()
-
-init_db()
-
-
-@app.before_request
-def auto_init_db():
-    import sqlite3
-    conn = sqlite3.connect('techconnect')
-    cursor = conn.cursor()
-    cursor.execute("CREATE TABLE IF NOT EXISTS portfolio_images (id INTEGER PRIMARY KEY AUTOINCREMENT, technician_id INTEGER, image_url TEXT, caption TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, technician_id INTEGER, client_name TEXT, rating INTEGER, comment TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN is_available INTEGER DEFAULT 1")
-    except:
-        pass
-    conn.commit()
-    conn.close()
-
-
-@app.before_request
-def auto_init_db():
-    import sqlite3, os
-    db_path = os.path.join(os.path.dirname(__file__), 'techconnect')
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute("CREATE TABLE IF NOT EXISTS portfolio_images (id INTEGER PRIMARY KEY AUTOINCREMENT, technician_id INTEGER, image_url TEXT, caption TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, technician_id INTEGER, client_name TEXT, rating INTEGER, comment TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-    cursor.execute("PRAGMA table_info(users)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if 'is_available' not in columns:
-        cursor.execute("ALTER TABLE users ADD COLUMN is_available INTEGER DEFAULT 1")
-    conn.commit()
-    conn.close()
-
-
-@app.before_request
-def auto_init_db():
-    import sqlite3, os
-    db_path = os.path.join(os.path.dirname(__file__), 'techconnect')
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT UNIQUE, password TEXT, role TEXT, phone TEXT, bio TEXT, category TEXT, location TEXT, is_available INTEGER DEFAULT 1)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS portfolio_images (id INTEGER PRIMARY KEY AUTOINCREMENT, technician_id INTEGER, image_url TEXT, caption TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, technician_id INTEGER, client_name TEXT, rating INTEGER, comment TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-    cursor.execute("PRAGMA table_info(users)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if 'is_available' not in columns:
-        cursor.execute("ALTER TABLE users ADD COLUMN is_available INTEGER DEFAULT 1")
-    conn.commit()
-    conn.close()
-
-
-with app.app_context():
-    import sqlite3, os
-    db_path = os.path.join(os.path.dirname(__file__), 'techconnect')
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT UNIQUE, password TEXT, role TEXT, phone TEXT, bio TEXT, category TEXT, location TEXT, is_available INTEGER DEFAULT 1)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS portfolio_images (id INTEGER PRIMARY KEY AUTOINCREMENT, technician_id INTEGER, image_url TEXT, caption TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, technician_id INTEGER, client_name TEXT, rating INTEGER, comment TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN is_available INTEGER DEFAULT 1")
-    except:
-        pass
-    conn.commit()
-    conn.close()
