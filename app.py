@@ -1,3 +1,18 @@
+
+def init_sqlite_db():
+    import sqlite3
+    conn = sqlite3.connect('techconnect')
+    conn.execute('CREATE TABLE IF NOT EXISTS portfolio_images (id INTEGER PRIMARY KEY AUTOINCREMENT, technician_id INTEGER, image_url TEXT, caption TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)')
+    conn.execute('CREATE TABLE IF NOT EXISTS reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, technician_id INTEGER, client_name TEXT, rating INTEGER, comment TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)')
+    for col, dtype in [('is_available', 'INTEGER DEFAULT 1'), ('avg_rating', 'REAL DEFAULT 0.0'), ('review_count', 'INTEGER DEFAULT 0')]:
+        try:
+            conn.execute(f'ALTER TABLE users ADD COLUMN {col} {dtype}')
+        except Exception:
+            pass
+    conn.commit()
+    conn.close()
+
+init_sqlite_db()
 """
 TechConnect - Technician Registration Prototype (v2)
 --------------------------------------------------
