@@ -812,6 +812,9 @@ def register_step2():
                 cert_path, session["reg_full_name"], degree, certificate_number, is_foreign=is_foreign
             )
             print(f"[STEP2 VERIFY] {check}", flush=True)
+            # Only certificates confirmed by the live NESA/RTB portal earn the
+            # "Verified" badge; OCR-only acceptances stay "Pending Review".
+            session["reg_verified"] = bool(check.get("nesa_verified"))
 
             if check.get("nesa_verified"):
                 print("[STEP2] ✅ Accepted via NESA portal.", flush=True)
@@ -937,12 +940,14 @@ def register_step4():
                 (full_name, qualification_type, degree_level, degree, skill_category,
                  phone, whatsapp, email, password_hash,
                  province, district, sector, bio,
-                 photo_filename, certificate_filename, certificate_number)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                 photo_filename, certificate_filename, certificate_number,
+                 verification_status)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (full_name, qualification_type, degree_level, degree, skill_category,
              phone, whatsapp, email, password_hash,
              province, district, sector, bio,
-             photo_filename, certificate_filename, certificate_number),
+             photo_filename, certificate_filename, certificate_number,
+             "Verified" if session.get("reg_verified") else "Pending Review"),
         )
         conn.commit()
         new_id = cursor.lastrowid
@@ -952,7 +957,7 @@ def register_step4():
         for key in ["reg_full_name","reg_phone","reg_whatsapp","reg_email",
                     "reg_qualification_type","reg_degree_level","reg_degree",
                     "reg_skill_category","reg_certificate_number","reg_bio",
-                    "reg_photo_filename","reg_certificate_filename",
+                    "reg_photo_filename","reg_certificate_filename","reg_verified",
                     "reg_province","reg_district","reg_sector"]:
             session.pop(key, None)
 
@@ -1094,12 +1099,17 @@ def edit_profile():
         # freshly uploaded one, or the one they already had -- gets checked
         # against the (possibly just-changed) qualification/field/skill.
         cert_to_check = new_cert if new_cert else tech["certificate_filename"]
+        verification_status = tech["verification_status"]
         if cert_to_check:
             cert_path = os.path.join(UPLOAD_CERT_DIR, cert_to_check)
             check = verify_technician_certificate(
                 cert_path, tech["full_name"], degree, certificate_number or tech["certificate_number"] or ""
             )
             print(f"[EDIT VERIFY] -> {check}", flush=True)
+            if check.get("nesa_verified"):
+                verification_status = "Verified"
+            elif new_cert:
+                verification_status = "Pending Review"
 
             if check.get("nesa_verified"):
                 print("[EDIT VERIFY] ✅ Accepted via NESA portal.", flush=True)
@@ -1149,12 +1159,14 @@ def edit_profile():
             UPDATE technicians SET
                 full_name = ?, qualification_type = ?, degree_level = ?, degree = ?, skill_category = ?, phone = ?, whatsapp = ?,
                 province = ?, district = ?, sector = ?, bio = ?,
-                photo_filename = ?, certificate_filename = ?, certificate_number = ?
+                photo_filename = ?, certificate_filename = ?, certificate_number = ?,
+                verification_status = ?
             WHERE id = ?
             """,
             (full_name, qualification_type, degree_level, degree, skill_category, phone, whatsapp,
              province, district, sector, bio,
-             photo_filename, certificate_filename, final_certificate_number, tech["id"]),
+             photo_filename, certificate_filename, final_certificate_number,
+             verification_status, tech["id"]),
         )
         conn.commit()
         conn.close()
@@ -1285,6 +1297,8 @@ def list_technicians():
     search_province = request.args.get("province", "").strip()
     search_district = request.args.get("district", "").strip()
     search_sector = request.args.get("sector", "").strip()
+    search_available = request.args.get("available", "") == "1"
+    search_verified = request.args.get("verified", "") == "1"
 
     query = "SELECT * FROM technicians"
     conditions = []
@@ -1302,6 +1316,10 @@ def list_technicians():
     if search_sector:
         conditions.append("sector = ?")
         params.append(search_sector)
+    if search_available:
+        conditions.append("COALESCE(is_available, 1) = 1")
+    if search_verified:
+        conditions.append("verification_status = 'Verified'")
 
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
@@ -1337,15 +1355,30 @@ def list_technicians():
         port_counts = {}
     conn.close()
 
+    # Trades with the most client reviews float to the top of the filter list;
+    # ties and un-reviewed trades keep their original order.
+    ordered_categories = list(SKILL_CATEGORIES)
+    try:
+        c2 = get_db_connection()
+        demand = {r["skill_category"]: r["n"] for r in c2.execute(
+            "SELECT t.skill_category, COUNT(r.id) AS n FROM reviews r "
+            "JOIN technicians t ON t.id = r.technician_id GROUP BY t.skill_category").fetchall()}
+        c2.close()
+        ordered_categories.sort(key=lambda cat: -demand.get(cat, 0))  # stable sort
+    except Exception as e:
+        print(f"[CATEGORY ORDER] skipped: {e}", flush=True)
+
     return render_template(
         "technicians.html",
         technicians=technicians,
-        skill_categories=SKILL_CATEGORIES,
+        skill_categories=ordered_categories,
         provinces=list(RWANDA_LOCATIONS.keys()),
         search_skill=search_skill,
         search_province=search_province,
         search_district=search_district,
         search_sector=search_sector,
+        search_available=search_available,
+        search_verified=search_verified,
         has_access=client_has_access(),
         access_seconds=access_expires_in(),
         port_counts=port_counts,
@@ -1673,6 +1706,56 @@ def reset_password():
     return render_template("reset_password.html", t=get_t(), lang=get_lang(), technician=current_technician())
 
 
+
+
+@app.route("/api/technician/<int:tech_id>/preview")
+def technician_preview(tech_id):
+    """Public profile preview for the search-page modal.
+    Deliberately excludes phone, WhatsApp and email - those stay behind the
+    200 RWF unlock."""
+    conn = get_db_connection()
+    try:
+        tech = conn.execute("SELECT * FROM technicians WHERE id = ?", (tech_id,)).fetchone()
+        if not tech:
+            return jsonify({"error": "not found"}), 404
+        try:
+            images = conn.execute(
+                "SELECT image_url, caption FROM portfolio_images WHERE technician_id = ? ORDER BY created_at DESC",
+                (tech_id,)
+            ).fetchall()
+        except sqlite3.OperationalError:
+            images = []
+        try:
+            reviews = conn.execute(
+                "SELECT client_name, rating, comment, created_at FROM reviews WHERE technician_id = ? ORDER BY created_at DESC LIMIT 5",
+                (tech_id,)
+            ).fetchall()
+        except sqlite3.OperationalError:
+            reviews = []
+    finally:
+        conn.close()
+
+    if tech["qualification_type"] == "Degree / Advanced Diploma (L6+)":
+        qualification = f"{tech['degree_level'] or 'Degree'} in {tech['degree']}"
+    else:
+        qualification = f"{tech['qualification_type']} in {tech['degree']}"
+
+    return jsonify({
+        "id": tech["id"],
+        "full_name": tech["full_name"],
+        "skill_category": tech["skill_category"],
+        "qualification": qualification,
+        "qualification_type": tech["qualification_type"],
+        "location": f"{tech['sector']}, {tech['district']}, {tech['province']}",
+        "bio": tech["bio"] or "",
+        "is_available": 1 if (tech["is_available"] is None or tech["is_available"]) else 0,
+        "verified": tech["verification_status"] == "Verified",
+        "avg_rating": tech["avg_rating"] or 0,
+        "review_count": tech["review_count"] or 0,
+        "photo": url_for("static", filename="uploads/photos/" + tech["photo_filename"]) if tech["photo_filename"] else "",
+        "images": [{"url": url_for("static", filename=i["image_url"]), "caption": i["caption"] or ""} for i in images],
+        "reviews": [{"name": r["client_name"], "rating": r["rating"], "comment": r["comment"] or "", "date": (r["created_at"] or "")[:10]} for r in reviews],
+    })
 
 # ══════════════════════════════════════════════════════════════════════════════
 # FEATURE 1 — AVAILABILITY TOGGLE

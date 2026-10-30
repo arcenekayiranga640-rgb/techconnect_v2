@@ -59,6 +59,32 @@
 .empty-state{text-align:center;padding:48px 24px;background:white;border-radius:14px;color:#6b7280;font-size:0.92rem;}
 .empty-state a{color:#2563eb;font-weight:600;text-decoration:none;}
 .stars{color:#f59e0b;font-size:0.78rem;}
+.badge-slate{background:#f1f5f9;color:#334155;}
+.filter-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px;}
+.filter-chip{display:inline-flex;align-items:center;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:99px;padding:8px 14px;font-size:0.84rem;font-weight:600;color:#374151;cursor:pointer;margin:0;}
+.filter-chip input{width:auto;margin:0;accent-color:#2563eb;}
+.filter-chip:has(input:checked){background:#eff6ff;border-color:#2563eb;color:#1e40af;}
+button.btn-portfolio{cursor:pointer;font-family:inherit;}
+/* Preview modal */
+.pm-backdrop{position:fixed;inset:0;background:rgba(15,23,42,0.55);display:none;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;z-index:1000;}
+.pm-backdrop.open{display:flex;}
+.pm-dialog{background:#fff;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,0.25);width:100%;max-width:640px;margin:auto;overflow:hidden;}
+.pm-head{display:flex;align-items:center;gap:14px;padding:20px 22px;border-bottom:1px solid #f1f5f9;}
+.pm-close{margin-left:auto;background:#f1f5f9;border:none;border-radius:8px;width:34px;height:34px;font-size:1rem;cursor:pointer;color:#475569;flex-shrink:0;}
+.pm-close:hover{background:#e2e8f0;}
+.pm-body{padding:20px 22px 24px;}
+.pm-section{font-size:0.72rem;font-weight:700;color:#6b7280;letter-spacing:1px;text-transform:uppercase;margin:20px 0 10px;}
+.pm-section:first-child{margin-top:0;}
+.pm-bio{background:#f8fafc;border-left:3px solid #2563eb;border-radius:8px;padding:12px 14px;font-size:0.88rem;color:#374151;line-height:1.65;}
+.pm-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;}
+.pm-gallery figure{margin:0;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;background:#fff;}
+.pm-gallery img{width:100%;height:110px;object-fit:cover;display:block;}
+.pm-gallery figcaption{font-size:0.74rem;color:#374151;padding:6px 8px;}
+.pm-empty{background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:18px;text-align:center;color:#94a3b8;font-size:0.84rem;}
+.pm-review{padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:0.84rem;color:#475569;}
+.pm-review:last-child{border-bottom:none;}
+.pm-cta{margin-top:20px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:0.84rem;color:#1e40af;}
+body.pm-open{overflow:hidden;}
 @media(max-width:540px){.tech-card{flex-direction:column;gap:14px;}.tc-avatar,.tc-avatar-placeholder{width:52px;height:52px;font-size:1.2rem;}.search-card{padding:18px 16px;}.access-banner{flex-direction:column;align-items:flex-start;}.btn-unlock{width:100%;text-align:center;}.contact-locked{flex-direction:column;}.btn-pay{width:100%;text-align:center;}}
 </style>
 
@@ -99,15 +125,19 @@
       <label for="sector" style="margin-top:12px;">{{ t.sector_label }}</label>
       <select name="sector" id="sector" {% if not search_district %}disabled{% endif %}><option value="">{% if search_district %}{{ t.all_sectors }}{% else %}{{ t.select_district }}{% endif %}</option>{% if search_district and search_sector %}<option value="{{ search_sector }}" selected>{{ search_sector }}</option>{% endif %}</select>
     </div>
+    <div class="filter-row">
+      <label class="filter-chip"><input type="checkbox" name="available" value="1" {% if search_available %}checked{% endif %}> ● Available now</label>
+      <label class="filter-chip"><input type="checkbox" name="verified" value="1" {% if search_verified %}checked{% endif %}> ✓ Verified only</label>
+    </div>
     <div style="display:flex;gap:10px;margin-top:18px;">
       <button type="submit" class="btn-search">{{ t.search_btn }}</button>
-      {% if search_skill or search_province or search_district or search_sector %}<a href="{{ url_for('list_technicians') }}" class="btn-clear">{{ t.clear_btn }}</a>{% endif %}
+      {% if search_skill or search_province or search_district or search_sector or search_available or search_verified %}<a href="{{ url_for('list_technicians') }}" class="btn-clear">{{ t.clear_btn }}</a>{% endif %}
     </div>
   </form>
 </div>
 
 <div class="results-summary">
-  {% if search_skill or search_province or search_district or search_sector %}{{ t.showing }}{% if search_skill %} <strong>{{ search_skill }}</strong>{% endif %}{% if search_province %} in <strong>{{ search_province }}</strong>{% endif %}{% if search_district %} › <strong>{{ search_district }}</strong>{% endif %}{% if search_sector %} › <strong>{{ search_sector }}</strong>{% endif %} —{% else %}{{ t.showing_all }} —{% endif %} <strong>{{ technicians|length }}</strong> {{ t.found }}
+  {% if search_skill or search_province or search_district or search_sector or search_available or search_verified %}{{ t.showing }}{% if search_skill %} <strong>{{ search_skill }}</strong>{% endif %}{% if search_province %} in <strong>{{ search_province }}</strong>{% endif %}{% if search_district %} › <strong>{{ search_district }}</strong>{% endif %}{% if search_sector %} › <strong>{{ search_sector }}</strong>{% endif %}{% if search_available %} · <strong>Available now</strong>{% endif %}{% if search_verified %} · <strong>Verified only</strong>{% endif %} —{% else %}{{ t.showing_all }} —{% endif %} <strong>{{ technicians|length }}</strong> {{ t.found }}
 </div>
 
 {% if technicians %}
@@ -120,7 +150,8 @@
         <span class="badge badge-blue">{{ tech.skill_category }}</span>
         {% if tech.is_available %}<span class="badge badge-green">● Available</span>
         {% else %}<span class="badge badge-red">● Booked</span>{% endif %}
-        {% if tech.verification_status == 'Verified' %}<span class="badge badge-green">✓ Verified</span>{% endif %}
+        {% if tech.verification_status == 'Verified' %}<span class="badge badge-green">✓ Verified</span>{% else %}<span class="badge badge-amber">⏳ Pending Review</span>{% endif %}
+        <span class="badge badge-slate">🎓 {% if tech.qualification_type == 'Advanced TVET Certificate V (L5)' %}TVET Certificate V (L5){% elif tech.qualification_type == 'Degree / Advanced Diploma (L6+)' %}{{ tech.degree_level or 'Degree / Adv. Diploma' }}{% else %}Professional Certificate{% endif %}</span>
         {% if tech.review_count and tech.review_count > 0 %}<span class="badge badge-amber"><span class="stars">{% for i in range(tech.avg_rating|int) %}★{% endfor %}</span> {{ tech.avg_rating }} ({{ tech.review_count }})</span>{% endif %}
       </div>
       <h3 class="tc-name">{{ tech.full_name }}</h3>
@@ -128,10 +159,7 @@
       <div class="tc-location"><span>📍</span><span><strong>{{ tech.sector }}</strong>, {{ tech.district }}, {{ tech.province }}</span></div>
       {% if tech.bio %}<p class="tc-bio">{{ tech.bio }}</p>{% endif %}
       <div class="tc-actions">
-        {% if port_counts.get(tech.id, 0) > 0 %}
-        <a href="{{ url_for('portfolio_view', tech_id=tech.id) }}" class="btn-portfolio">📸 View Portfolio ({{ port_counts.get(tech.id, 0) }})</a>
-        {% endif %}
-        <a href="{{ url_for('portfolio_view', tech_id=tech.id) }}" class="btn-portfolio">⭐ Reviews ({{ tech.review_count or 0 }})</a>
+        <button type="button" class="btn-portfolio" data-preview="{{ tech.id }}">👁 View Profile &amp; Portfolio{% if port_counts.get(tech.id, 0) > 0 %} ({{ port_counts.get(tech.id, 0) }}){% endif %}</button>
       </div>
       {% if has_access %}
         <div class="contact-revealed">
@@ -153,10 +181,68 @@
 {% endif %}
 </div>
 
+<div class="pm-backdrop" id="pmBackdrop" aria-hidden="true">
+  <div class="pm-dialog" role="dialog" aria-modal="true" aria-labelledby="pmTitle">
+    <div class="pm-head">
+      <div id="pmAvatar"></div>
+      <div style="min-width:0;"><h3 id="pmTitle" style="margin:0;font-size:1.1rem;color:#0f172a;">Loading…</h3><div id="pmSub" style="font-size:0.82rem;color:#6b7280;margin-top:2px;"></div></div>
+      <button type="button" class="pm-close" id="pmClose" aria-label="Close preview">✕</button>
+    </div>
+    <div class="pm-body" id="pmBody"></div>
+  </div>
+</div>
+
 <script>
 const toggleBtn=document.getElementById('toggleBtn'),locationFilters=document.getElementById('locationFilters');
 const openText="{{ t.filter_location }}",closeText="{{ t.hide_location }}";
 toggleBtn.addEventListener('click',()=>{const o=locationFilters.style.display!=='none';locationFilters.style.display=o?'none':'block';toggleBtn.textContent=o?openText:closeText;});
+/* ── Profile & portfolio preview modal ── */
+const HAS_ACCESS={{ 'true' if has_access else 'false' }}, PAY_URL="{{ url_for('pay') }}", PORTFOLIO_URL="{{ url_for('portfolio_view', tech_id=0) }}".slice(0,-1);
+const pmBackdrop=document.getElementById('pmBackdrop'),pmBody=document.getElementById('pmBody'),pmTitle=document.getElementById('pmTitle'),pmSub=document.getElementById('pmSub'),pmAvatar=document.getElementById('pmAvatar'),pmClose=document.getElementById('pmClose');
+let pmLastFocus=null;
+function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;}
+function stars(n){return '★'.repeat(Math.max(0,Math.min(5,n)));}
+function closePreview(){pmBackdrop.classList.remove('open');pmBackdrop.setAttribute('aria-hidden','true');document.body.classList.remove('pm-open');if(pmLastFocus)pmLastFocus.focus();}
+function renderPreview(d){
+  pmTitle.textContent=d.full_name;
+  pmSub.textContent=d.skill_category+' · '+d.location;
+  pmAvatar.replaceChildren();
+  if(d.photo){const i=el('img','tc-avatar');i.src=d.photo;i.alt=d.full_name;pmAvatar.appendChild(i);}else{pmAvatar.appendChild(el('div','tc-avatar-placeholder',d.full_name.charAt(0).toUpperCase()));}
+  pmBody.replaceChildren();
+  const badges=el('div','badge-row');
+  badges.appendChild(el('span','badge '+(d.is_available?'badge-green':'badge-red'),d.is_available?'● Available for Hire':'● Currently Booked'));
+  badges.appendChild(el('span','badge '+(d.verified?'badge-green':'badge-amber'),d.verified?'✓ Verified':'⏳ Pending Review'));
+  badges.appendChild(el('span','badge badge-slate','🎓 '+d.qualification));
+  if(d.review_count>0)badges.appendChild(el('span','badge badge-amber',stars(Math.round(d.avg_rating))+' '+d.avg_rating+' ('+d.review_count+')'));
+  pmBody.appendChild(badges);
+  pmBody.appendChild(el('div','pm-section','About'));
+  pmBody.appendChild(d.bio?el('div','pm-bio',d.bio):el('div','pm-empty','This technician has not added a bio yet.'));
+  pmBody.appendChild(el('div','pm-section','Work Portfolio ('+d.images.length+')'));
+  if(d.images.length){
+    const g=el('div','pm-gallery');
+    d.images.forEach(im=>{const f=el('figure');const a=el('a');a.href=im.url;a.target='_blank';a.rel='noopener';const i=el('img');i.src=im.url;i.alt=im.caption||'Portfolio image';i.loading='lazy';a.appendChild(i);f.appendChild(a);if(im.caption)f.appendChild(el('figcaption','',im.caption));g.appendChild(f);});
+    pmBody.appendChild(g);
+  }else{pmBody.appendChild(el('div','pm-empty','No portfolio images uploaded yet.'));}
+  pmBody.appendChild(el('div','pm-section','Client Reviews'));
+  if(d.reviews.length){d.reviews.forEach(r=>{const rv=el('div','pm-review');const top=el('div');top.appendChild(el('strong','',r.name));top.appendChild(el('span','stars',' '+stars(r.rating)));rv.appendChild(top);if(r.comment)rv.appendChild(el('div','',r.comment));pmBody.appendChild(rv);});}
+  else{pmBody.appendChild(el('div','pm-empty','No reviews yet.'));}
+  const more=el('a','',  'See all reviews / leave a review →');more.href=PORTFOLIO_URL+d.id;more.style.cssText='display:inline-block;margin-top:10px;font-size:0.84rem;font-weight:600;color:#2563eb;text-decoration:none;';pmBody.appendChild(more);
+  const cta=el('div','pm-cta');
+  cta.appendChild(el('span','',HAS_ACCESS?'Contact access is active — details are shown on the card.':'Like what you see? Unlock phone, WhatsApp and email for 24 hours.'));
+  if(!HAS_ACCESS){const b=el('a','btn-unlock','🔓 Unlock — 200 RWF');b.href=PAY_URL;cta.appendChild(b);}
+  pmBody.appendChild(cta);
+}
+async function openPreview(id,trigger){
+  pmLastFocus=trigger;pmTitle.textContent='Loading…';pmSub.textContent='';pmAvatar.replaceChildren();pmBody.replaceChildren();
+  pmBackdrop.classList.add('open');pmBackdrop.setAttribute('aria-hidden','false');document.body.classList.add('pm-open');pmClose.focus();
+  try{const r=await fetch('/api/technician/'+id+'/preview');if(!r.ok)throw 0;renderPreview(await r.json());}
+  catch(e){pmTitle.textContent='Could not load profile';pmBody.appendChild(el('div','pm-empty','Please close this window and try again.'));}
+}
+document.querySelectorAll('[data-preview]').forEach(b=>b.addEventListener('click',()=>openPreview(b.dataset.preview,b)));
+pmClose.addEventListener('click',closePreview);
+pmBackdrop.addEventListener('click',e=>{if(e.target===pmBackdrop)closePreview();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&pmBackdrop.classList.contains('open'))closePreview();});
+
 const prov=document.getElementById('province'),dist=document.getElementById('district'),sect=document.getElementById('sector');
 const PD="{{ search_district }}",PS="{{ search_sector }}",ADT="{{ t.all_districts }}",AST="{{ t.all_sectors }}",SPT="{{ t.select_province }}",SDT="{{ t.select_district }}";
 async function loadDist(p,pre){if(!p){dist.innerHTML=`<option value="">${SPT}</option>`;dist.disabled=true;sect.innerHTML=`<option value="">${SDT}</option>`;sect.disabled=true;return;}const r=await fetch('/api/districts?province='+encodeURIComponent(p));const d=await r.json();dist.innerHTML=`<option value="">${ADT}</option>`+d.map(x=>`<option value="${x}" ${x===pre?'selected':''}>${x}</option>`).join('');dist.disabled=false;}
