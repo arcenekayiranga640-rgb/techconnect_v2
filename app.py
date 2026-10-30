@@ -1,18 +1,3 @@
-
-def init_sqlite_db():
-    import sqlite3
-    conn = sqlite3.connect('techconnect')
-    conn.execute('CREATE TABLE IF NOT EXISTS portfolio_images (id INTEGER PRIMARY KEY AUTOINCREMENT, technician_id INTEGER, image_url TEXT, caption TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)')
-    conn.execute('CREATE TABLE IF NOT EXISTS reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, technician_id INTEGER, client_name TEXT, rating INTEGER, comment TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)')
-    for col, dtype in [('is_available', 'INTEGER DEFAULT 1'), ('avg_rating', 'REAL DEFAULT 0.0'), ('review_count', 'INTEGER DEFAULT 0')]:
-        try:
-            conn.execute(f'ALTER TABLE users ADD COLUMN {col} {dtype}')
-        except Exception:
-            pass
-    conn.commit()
-    conn.close()
-
-init_sqlite_db()
 """
 TechConnect - Technician Registration Prototype (v2)
 --------------------------------------------------
@@ -53,6 +38,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import sqlite3
+import threading
 import os
 import secrets
 from datetime import datetime, timedelta
@@ -109,7 +95,7 @@ except ImportError:
 
 app.secret_key = "dev-secret-key-change-later"  # needed for sessions + flash messages
 
-BASE_DIR = os.path.dirname(__file__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "techconnect.db")
 LOCATIONS_PATH = os.path.join(BASE_DIR, "rwanda_locations.json")
 
@@ -562,30 +548,35 @@ with open(LOCATIONS_PATH, encoding="utf-8") as f:
     RWANDA_LOCATIONS = json.load(f)
 
 
-def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
+_SCHEMA_READY = False
+_SCHEMA_LOCK = threading.Lock()
+
+
+def _raw_connect():
+    """Plain connection to the absolute DB path - no schema logic."""
+    conn = sqlite3.connect(DB_PATH, timeout=15)
     conn.row_factory = sqlite3.Row
-    # ── Auto-migrate on every connection ────────────────────────────────────
-    # On Render's ephemeral filesystem the DB may be recreated between deploys.
-    # Running ALTER TABLE here guarantees every column exists before any query.
-    _REQUIRED = [
-        ("technicians", "reset_token",      "TEXT DEFAULT NULL"),
-        ("technicians", "token_expiration", "TEXT DEFAULT NULL"),
-        ("technicians", "is_available",     "INTEGER DEFAULT 1"),
-        ("technicians", "avg_rating",       "REAL DEFAULT 0"),
-        ("technicians", "review_count",     "INTEGER DEFAULT 0"),
-    ]
-    for _tbl, _col, _defn in _REQUIRED:
-        try:
-            conn.execute(f"ALTER TABLE {_tbl} ADD COLUMN {_col} {_defn}")
-            conn.commit()
-        except Exception:
-            pass  # Column already exists
     return conn
 
 
+def get_db_connection():
+    """Open a connection, making sure the schema exists first (once per process).
+
+    This is what makes the app safe under Gunicorn on Render: the
+    `if __name__ == "__main__"` block never runs there, and the SQLite file
+    is brand new after every deploy/restart on the ephemeral filesystem.
+    """
+    global _SCHEMA_READY
+    if not _SCHEMA_READY:
+        with _SCHEMA_LOCK:
+            if not _SCHEMA_READY:
+                init_db()
+                _SCHEMA_READY = True
+    return _raw_connect()
+
+
 def init_db():
-    conn = get_db_connection()
+    conn = _raw_connect()
     conn.execute("""
         CREATE TABLE IF NOT EXISTS technicians (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1009,16 +1000,25 @@ def my_profile():
     if not tech:
         flash("Please log in to view your profile.", "error")
         return redirect(url_for("login"))
+    portfolio, reviews = [], []
     conn = get_db_connection()
-    portfolio = conn.execute(
-        "SELECT * FROM portfolio_images WHERE technician_id = ? ORDER BY created_at DESC",
-        (tech["id"],)
-    ).fetchall()
-    reviews = conn.execute(
-        "SELECT * FROM reviews WHERE technician_id = ? ORDER BY created_at DESC",
-        (tech["id"],)
-    ).fetchall()
-    conn.close()
+    try:
+        try:
+            portfolio = conn.execute(
+                "SELECT * FROM portfolio_images WHERE technician_id = ? ORDER BY created_at DESC",
+                (tech["id"],)
+            ).fetchall()
+        except sqlite3.OperationalError as e:
+            print(f"[MY_PROFILE] portfolio query failed: {e}", flush=True)
+        try:
+            reviews = conn.execute(
+                "SELECT * FROM reviews WHERE technician_id = ? ORDER BY created_at DESC",
+                (tech["id"],)
+            ).fetchall()
+        except sqlite3.OperationalError as e:
+            print(f"[MY_PROFILE] reviews query failed: {e}", flush=True)
+    finally:
+        conn.close()
     return render_template("my_profile.html",
         technician=tech, portfolio=portfolio, reviews=reviews,
         t=get_t(), lang=get_lang())
@@ -1867,6 +1867,13 @@ def cookie_policy():
     return render_template("cookie_policy.html", technician=current_technician())
 
 
+
+
+# Warm schema at import (runs under Gunicorn too)
+try:
+    get_db_connection().close()
+except Exception as _e:
+    print(f"[STARTUP] schema init failed: {_e}", flush=True)
 
 
 if __name__ == '__main__':
