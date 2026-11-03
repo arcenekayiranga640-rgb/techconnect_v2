@@ -22,7 +22,7 @@
 
         /* ── Language flags only — no text ── */
         .lang-switcher { display:flex; align-items:center; gap:4px; }
-        .lang-switcher a { font-size:1.35rem; line-height:1; padding:3px 5px; border-radius:5px; text-decoration:none; opacity:0.55; transition:opacity 0.2s, background 0.2s; }
+        .lang-switcher a { display:inline-flex; align-items:center; font-size:1.35rem; line-height:1; padding:3px 5px; border-radius:5px; text-decoration:none; opacity:0.55; transition:opacity 0.2s, background 0.2s; }
         .lang-switcher a.active { opacity:1; background:rgba(255,255,255,0.12); }
         .lang-switcher a:hover { opacity:1; }
         .lang-divider { display:none; }
@@ -32,13 +32,37 @@
         .nav-cta-btn:hover { background:#1d4ed8; color:white; }
         .hamburger-btn { background:none; border:none; cursor:pointer; padding:6px; display:flex; flex-direction:column; gap:5px; margin-top:0; }
         .hamburger-btn span { display:block; width:26px; height:3px; background:white; border-radius:3px; transition:background 0.2s; }
+
+        /* ── Phones: keep logo, flags, Sign Up and menu on one row without horizontal scroll ── */
+        @media(max-width:430px) {
+          header { padding:10px 12px; }
+          .brand-link { gap:8px; }
+          .brand-logo { width:36px; height:36px; }
+          .brand-name { font-size:1.05rem; letter-spacing:0; }
+          .nav-right { gap:6px !important; }
+          .lang-switcher { gap:2px; }
+          .lang-switcher a { padding:3px; }
+          .lang-switcher .ic-flag { width:22px; height:14px; }
+          .nav-cta-btn { padding:7px 13px; }
+          .hamburger-btn { padding:4px; }
+        }
+        @media(max-width:350px) {
+          header { padding:8px 8px; }
+          .brand-link { gap:6px; }
+          .brand-logo { width:30px; height:30px; }
+          .brand-name { font-size:0.95rem; }
+          .nav-right { gap:4px !important; }
+          .lang-switcher .ic-flag { width:20px; height:13px; }
+          .nav-cta-btn { padding:6px 11px; font-size:0.78rem; }
+        }
         .hamburger-btn:hover span { background:var(--blue-light); }
         .hamburger-menu { position:absolute; top:100%; right:28px; background:white; border-radius:10px; min-width:230px; box-shadow:0 8px 24px rgba(13,27,54,0.18); overflow:hidden; display:none; z-index:200; }
         .hamburger-menu.open { display:block; }
         .hamburger-menu a { display:flex; align-items:center; gap:12px; padding:14px 20px; color:var(--navy); font-size:0.95em; font-weight:600; border-bottom:1px solid #eef2f7; text-decoration:none; transition:background 0.15s; }
         .hamburger-menu a:last-child { border-bottom:none; }
         .hamburger-menu a:hover { background:#f0f4f9; color:var(--blue); }
-        .menu-icon { width:32px; height:32px; border-radius:8px; background:#eef2f7; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:15px; }
+        .menu-icon { width:32px; height:32px; border-radius:8px; background:#eef2f7; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:15px; color:#2563eb; }
+        .menu-icon .ic { width:17px; height:17px; vertical-align:0; margin:0; }
         main { max-width:860px; margin:30px auto; padding:0 20px 60px; }
         .card { background:white; border-radius:10px; padding:30px; box-shadow:0 2px 10px rgba(0,0,0,0.07); }
         h1 { color:var(--navy); margin-top:0; }
@@ -81,13 +105,15 @@
         .hero-dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,0.35); }
         .hero-dot.active { background:var(--blue-light); }
         .home-section { background:white; border-radius:10px; padding:32px 28px; margin-top:20px; }
-        .section-icon { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px; margin-bottom:10px; }
+        .section-icon .ic { width:20px; height:20px; vertical-align:0; margin:0; }
+        .section-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px; margin-bottom:10px; }
         .section-label { font-size:0.78em; font-weight:700; letter-spacing:0.6px; text-transform:uppercase; margin-bottom:8px; }
         .home-section h2 { color:var(--navy); font-size:1.25em; margin:0 0 14px; }
         .home-section p { color:#444; font-size:0.93em; line-height:1.7; margin:0 0 10px; }
         .vision-cards { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-top:18px; }
         .vision-card { background:#f4f7fb; border-radius:8px; padding:16px; border-left:3px solid var(--blue); }
-        .vision-icon { font-size:22px; display:block; margin-bottom:6px; }
+        .vision-icon { display:flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:10px; background:#eff6ff; color:#2563eb; margin-bottom:10px; }
+        .vision-icon .ic { width:20px; height:20px; vertical-align:0; margin:0; }
         .vision-card strong { color:var(--navy); font-size:0.95em; display:block; margin-bottom:6px; }
         .vision-card p { color:#555; font-size:0.88em; line-height:1.5; margin:0; }
         .steps { display:flex; align-items:flex-start; gap:12px; margin-top:18px; flex-wrap:wrap; }
@@ -102,6 +128,7 @@
     </style>
 </head>
 <body>
+{% include '_icons.html' %}
     <header>
         <!-- Brand: square logo + "Tech" / "Connect" stacked on mobile, inline on desktop -->
         <a href="{{ url_for('home') }}" class="brand-link">
@@ -110,11 +137,11 @@
         </a>
 
         <!-- Right side: flags → Sign Up → Hamburger -->
-        <div style="display:flex;align-items:center;gap:8px;">
+        <div class="nav-right" style="display:flex;align-items:center;gap:8px;">
             <!-- Language flags only — no text labels -->
             <div class="lang-switcher">
-                <a href="{{ url_for('set_lang', lang='en') }}" class="{% if lang == 'en' %}active{% endif %}" title="English">🇬🇧</a>
-                <a href="{{ url_for('set_lang', lang='fr') }}" class="{% if lang == 'fr' %}active{% endif %}" title="Français">🇫🇷</a>
+                <a href="{{ url_for('set_lang', lang='en') }}" class="{% if lang == 'en' %}active{% endif %}" title="English">{{ icon('flag-gb', 'ic-flag') }}</a>
+                <a href="{{ url_for('set_lang', lang='fr') }}" class="{% if lang == 'fr' %}active{% endif %}" title="Français">{{ icon('flag-fr', 'ic-flag') }}</a>
             </div>
             <!-- Compact pill Sign Up button -->
             {% if not technician %}
@@ -126,15 +153,15 @@
             </button>
         </div>
         <div class="hamburger-menu" id="hamburgerMenu">
-            <a href="{{ url_for('home') }}"><span class="menu-icon">🏠</span> {{ t.nav_home }}</a>
-            <a href="{{ url_for('list_technicians') }}"><span class="menu-icon">🔍</span> {{ t.nav_find }}</a>
-            <a href="{{ url_for('select_plan') }}"><span class="menu-icon">💳</span> {{ t.nav_plans }}</a>
+            <a href="{{ url_for('home') }}"><span class="menu-icon">{{ icon('home') }}</span> {{ t.nav_home }}</a>
+            <a href="{{ url_for('list_technicians') }}"><span class="menu-icon">{{ icon('search') }}</span> {{ t.nav_find }}</a>
+            <a href="{{ url_for('select_plan') }}"><span class="menu-icon">{{ icon('credit-card') }}</span> {{ t.nav_plans }}</a>
             {% if technician %}
-                <a href="{{ url_for('my_profile') }}"><span class="menu-icon">👤</span> {{ t.nav_profile }}</a>
-                <a href="{{ url_for('logout') }}"><span class="menu-icon">🚪</span> {{ t.nav_logout }}</a>
+                <a href="{{ url_for('my_profile') }}"><span class="menu-icon">{{ icon('user') }}</span> {{ t.nav_profile }}</a>
+                <a href="{{ url_for('logout') }}"><span class="menu-icon">{{ icon('log-out') }}</span> {{ t.nav_logout }}</a>
             {% else %}
-                <a href="{{ url_for('register') }}"><span class="menu-icon">✍️</span> Sign Up as Technician</a>
-                <a href="{{ url_for('login') }}"><span class="menu-icon">🔑</span> {{ t.nav_login }}</a>
+                <a href="{{ url_for('register') }}"><span class="menu-icon">{{ icon('user-plus') }}</span> Sign Up as Technician</a>
+                <a href="{{ url_for('login') }}"><span class="menu-icon">{{ icon('key') }}</span> {{ t.nav_login }}</a>
             {% endif %}
         </div>
     </header>

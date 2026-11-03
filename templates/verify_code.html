@@ -6,7 +6,8 @@ body{margin:0;font-family:"Segoe UI",Arial,sans-serif;min-height:100vh;backgroun
 main,section,[role="main"]{background:transparent!important;}
 .wizard-bg{min-height:100vh;padding:60px 20px;}
 .wizard-card{max-width:460px;margin:0 auto;background:rgba(255,255,255,0.10);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,0.20);border-radius:20px;padding:40px 44px;box-shadow:0 24px 48px rgba(0,0,0,0.35);}
-.wiz-icon{font-size:2.5rem;text-align:center;margin-bottom:12px;}
+.wiz-icon{width:56px;height:56px;margin:0 auto 14px;border-radius:14px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.22);color:#bfdbfe;display:flex;align-items:center;justify-content:center;}
+.wiz-icon .ic{width:28px;height:28px;vertical-align:0;margin:0;}
 .wiz-title{color:white;font-size:1.5rem;font-weight:700;margin:0 0 6px;text-align:center;}
 .wiz-sub{color:rgba(255,255,255,0.6);font-size:0.86rem;margin:0 0 24px;text-align:center;line-height:1.6;}
 .email-badge{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:6px 12px;font-size:0.82rem;color:rgba(255,255,255,0.7);text-align:center;margin-bottom:20px;}
@@ -33,12 +34,12 @@ label{display:block;margin-top:18px;margin-bottom:8px;font-weight:600;color:rgba
 
 <div class="wizard-bg">
   <div class="wizard-card">
-    <div class="wiz-icon">📧</div>
+    <div class="wiz-icon">{{ icon('mail') }}</div>
     <h1 class="wiz-title">Enter Reset Code</h1>
     <p class="wiz-sub">We sent a 6-digit code to your email. Enter it below before it expires.</p>
 
     {% if session.get('reset_email') %}
-    <div class="email-badge">📨 {{ session.get('reset_email') }}</div>
+    <div class="email-badge">{{ icon('mail', 'ic-t') }}{{ session.get('reset_email') }}</div>
     {% endif %}
 
     {% with messages = get_flashed_messages(with_categories=true) %}

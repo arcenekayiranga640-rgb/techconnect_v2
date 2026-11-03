@@ -140,9 +140,9 @@ TRANSLATIONS = {
         "sector_label":"Sector","all_sectors":"All sectors","select_district":"Select district first",
         "search_btn":"Search","clear_btn":"Clear","showing_all":"Showing all technicians","showing":"Showing:","found":"found",
         "qualification_label":"Qualification:","degree_in":"Degree in","certificate_in":"Certificate in",
-        "unlock_contact":"🔓 Pay 200 RWF to unlock","no_technicians":"No technicians found.",
+        "unlock_contact":"Pay 200 RWF to unlock","no_technicians":"No technicians found.",
         "try_removing":"Try removing some filters, or","signup_first":"be the first to sign up here",
-        "verified":"✅ Verified","pending":"⏳ Pending Review",
+        "verified":"Verified","pending":"Pending Review",
         "pay_title":"Unlock All Technician Contacts",
         "pay_intro":"Pay <strong>{price} RWF</strong> to get <strong>{hours}-hour access</strong> to all technician contacts on TechConnect.",
         "pay_step1":"Step 1 — Send {price} RWF to:","mtn_title":"MTN MoMo Pay",
@@ -199,9 +199,9 @@ TRANSLATIONS = {
         "sector_label":"Secteur","all_sectors":"Tous les secteurs","select_district":"Sélectionnez d'abord le district",
         "search_btn":"Rechercher","clear_btn":"Effacer","showing_all":"Affichage de tous les techniciens","showing":"Affichage :","found":"trouvé(s)",
         "qualification_label":"Qualification :","degree_in":"Licence en","certificate_in":"Certificat en",
-        "unlock_contact":"🔓 Payer 200 RWF pour débloquer","no_technicians":"Aucun technicien trouvé.",
+        "unlock_contact":"Payer 200 RWF pour débloquer","no_technicians":"Aucun technicien trouvé.",
         "try_removing":"Essayez de supprimer des filtres, ou","signup_first":"soyez le premier à vous inscrire ici",
-        "verified":"✅ Vérifié","pending":"⏳ En attente de vérification",
+        "verified":"Vérifié","pending":"En attente de vérification",
         "pay_title":"Débloquer tous les contacts des techniciens",
         "pay_intro":"Payez <strong>{price} RWF</strong> pour obtenir un accès de <strong>{hours} heures</strong> à toutes les coordonnées des techniciens sur TechConnect.",
         "pay_step1":"Étape 1 — Envoyez {price} RWF à :","mtn_title":"MTN MoMo Pay",
@@ -546,6 +546,26 @@ def check_certificate_document(filepath, qualification_type, degree_level, skill
 # Load Rwanda's province -> district -> sector structure once at startup
 with open(LOCATIONS_PATH, encoding="utf-8") as f:
     RWANDA_LOCATIONS = json.load(f)
+
+
+# ── Inline SVG icons (sprite lives in templates/_icons.html) ──────────────────
+from markupsafe import Markup, escape as _escape
+_ICON_NAME_RE = re.compile(r"^[a-z0-9-]+$")
+
+
+def icon(name, cls=""):
+    """Render an inline SVG icon: {{ icon('home') }} or {{ icon('lock', 'ic-md ic-t') }}."""
+    if not _ICON_NAME_RE.match(name or ""):
+        return Markup("")
+    extra = (" " + str(_escape(cls))) if cls else ""
+    return Markup(
+        f'<svg class="ic{extra}" fill="none" stroke="currentColor" stroke-width="1.75" '
+        f'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">'
+        f'<use href="#i-{name}"/></svg>'
+    )
+
+
+app.jinja_env.globals["icon"] = icon
 
 
 _SCHEMA_READY = False

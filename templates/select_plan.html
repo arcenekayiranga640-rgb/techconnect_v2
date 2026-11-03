@@ -6,7 +6,7 @@
   <!-- Header -->
   <div style="text-align:center;margin-bottom:36px;">
     <div style="display:inline-block;background:#d1fae5;color:#065f46;font-size:0.78rem;font-weight:700;padding:4px 14px;border-radius:20px;letter-spacing:0.5px;margin-bottom:12px;">
-      🎉 7-DAY FREE TRIAL ACTIVATED
+      {{ icon('sparkles', 'ic-t') }}7-DAY FREE TRIAL ACTIVATED
     </div>
     <h1 style="color:#0F172A;font-size:1.8rem;margin:0 0 10px;">Choose Your Subscription Plan</h1>
     <p style="color:#64748b;font-size:0.95rem;max-width:480px;margin:0 auto;line-height:1.6;">
@@ -17,7 +17,7 @@
   <!-- Free Trial Banner -->
   <div style="background:linear-gradient(135deg,#0F172A,#1e3a5f);border-radius:12px;padding:20px 28px;margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
     <div>
-      <p style="color:#F59E0B;font-weight:700;font-size:0.9rem;margin:0 0 4px;">⏰ Your 7-Day Free Trial is Now Active</p>
+      <p style="color:#F59E0B;font-weight:700;font-size:0.9rem;margin:0 0 4px;">{{ icon('alarm-clock', 'ic-t') }}Your 7-Day Free Trial is Now Active</p>
       <p style="color:#94a3b8;font-size:0.82rem;margin:0;">Your profile is visible to all clients for the next 7 days — completely free. Subscribe before it ends to stay listed.</p>
     </div>
     <div style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);border-radius:8px;padding:10px 18px;text-align:center;flex-shrink:0;">
@@ -47,10 +47,10 @@
         </div>
       </div>
       <ul style="list-style:none;padding:0;margin:0 0 28px;display:flex;flex-direction:column;gap:10px;">
-        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;font-weight:700;">✓</span> Profile visible for 30 days</li>
-        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;font-weight:700;">✓</span> Searchable by all clients</li>
-        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;font-weight:700;">✓</span> Contact details visible to paying clients</li>
-        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;font-weight:700;">✓</span> 7-day free trial included</li>
+        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;display:inline-flex;">{{ icon('check','ic-md') }}</span> Profile visible for 30 days</li>
+        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;display:inline-flex;">{{ icon('check','ic-md') }}</span> Searchable by all clients</li>
+        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;display:inline-flex;">{{ icon('check','ic-md') }}</span> Contact details visible to paying clients</li>
+        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;display:inline-flex;">{{ icon('check','ic-md') }}</span> 7-day free trial included</li>
       </ul>
       <a href="{{ url_for('pay') }}" style="display:block;text-align:center;background:#2563EB;color:white;padding:13px;border-radius:8px;font-weight:600;font-size:0.9rem;text-decoration:none;">
         Start with 7-Day Free Trial
@@ -61,7 +61,7 @@
     <!-- 3-Month Plan -->
     <div style="background:white;border-radius:16px;border:2px solid #2563EB;padding:32px 28px;position:relative;box-shadow:0 8px 24px rgba(37,99,235,0.12);">
       <div style="position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:#2563EB;color:white;font-size:0.72rem;font-weight:700;padding:5px 16px;border-radius:20px;white-space:nowrap;">
-        ⭐ BEST VALUE
+        {{ icon('star','ic-sm ic-fill ic-t') }}BEST VALUE
       </div>
       <div style="margin-bottom:20px;margin-top:8px;">
         <p style="color:#2563EB;font-size:0.78rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin:0 0 8px;">Most Popular</p>
@@ -80,12 +80,12 @@
         <div style="color:#2563EB;font-size:0.78rem;margin-top:2px;font-weight:500;">≈ 2,333 RWF/month</div>
       </div>
       <ul style="list-style:none;padding:0;margin:0 0 28px;display:flex;flex-direction:column;gap:10px;">
-        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;font-weight:700;">✓</span> Profile visible for 90 days</li>
-        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;font-weight:700;">✓</span> Searchable by all clients</li>
-        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;font-weight:700;">✓</span> Contact details visible to paying clients</li>
-        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;font-weight:700;">✓</span> 7-day free trial included</li>
-        <li style="font-size:0.84rem;color:#10B981;display:flex;align-items:center;gap:8px;font-weight:600;"><span style="font-weight:700;">✓</span> Priority listing in search results</li>
-        <li style="font-size:0.84rem;color:#10B981;display:flex;align-items:center;gap:8px;font-weight:600;"><span style="font-weight:700;">✓</span> Maximum savings — best deal</li>
+        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;display:inline-flex;">{{ icon('check','ic-md') }}</span> Profile visible for 90 days</li>
+        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;display:inline-flex;">{{ icon('check','ic-md') }}</span> Searchable by all clients</li>
+        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;display:inline-flex;">{{ icon('check','ic-md') }}</span> Contact details visible to paying clients</li>
+        <li style="font-size:0.84rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style="color:#10B981;display:inline-flex;">{{ icon('check','ic-md') }}</span> 7-day free trial included</li>
+        <li style="font-size:0.84rem;color:#10B981;display:flex;align-items:center;gap:8px;font-weight:600;"><span style="display:inline-flex;">{{ icon('check','ic-md') }}</span> Priority listing in search results</li>
+        <li style="font-size:0.84rem;color:#10B981;display:flex;align-items:center;gap:8px;font-weight:600;"><span style="display:inline-flex;">{{ icon('check','ic-md') }}</span> Maximum savings — best deal</li>
       </ul>
       <a href="{{ url_for('pay') }}" style="display:block;text-align:center;background:#2563EB;color:white;padding:13px;border-radius:8px;font-weight:600;font-size:0.9rem;text-decoration:none;">
         Start with 7-Day Free Trial
@@ -97,7 +97,7 @@
   <!-- Client Pass -->
   <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:20px 28px;margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;">
     <div>
-      <p style="color:#92400e;font-weight:700;font-size:0.9rem;margin:0 0 4px;">👥 Are you a client looking for a technician?</p>
+      <p style="color:#92400e;font-weight:700;font-size:0.9rem;margin:0 0 4px;">{{ icon('users', 'ic-t') }}Are you a client looking for a technician?</p>
       <p style="color:#78350f;font-size:0.82rem;margin:0;">Pay 200 RWF for 24-hour access to all technician contacts across every trade and location.</p>
     </div>
     <a href="{{ url_for('pay') }}" style="background:#F59E0B;color:white;padding:10px 20px;border-radius:8px;font-weight:600;font-size:0.85rem;text-decoration:none;white-space:nowrap;">

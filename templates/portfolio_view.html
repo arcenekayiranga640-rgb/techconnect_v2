@@ -57,9 +57,9 @@ textarea{resize:vertical;}
       <h1 class="pv-name">{{ tech.full_name }}</h1>
       <p class="pv-sub">{{ tech.skill_category }} · {{ tech.sector }}, {{ tech.district }}</p>
       <div class="badge-row">
-        {% if tech.is_available %}<span class="badge badge-green">● Available for Hire</span>
-        {% else %}<span class="badge badge-red">● Currently Booked</span>{% endif %}
-        {% if tech.verification_status == 'Verified' %}<span class="badge badge-blue">✓ Verified</span>{% endif %}
+        {% if tech.is_available %}<span class="badge badge-green">{{ icon('dot','ic-sm') }} Available for Hire</span>
+        {% else %}<span class="badge badge-red">{{ icon('dot','ic-sm') }} Currently Booked</span>{% endif %}
+        {% if tech.verification_status == 'Verified' %}<span class="badge badge-blue">{{ icon('check','ic-sm') }} Verified</span>{% endif %}
         {% if tech.review_count > 0 %}
           <span class="badge badge-amber">
             <span class="stars">{% for i in range(tech.avg_rating|int) %}★{% endfor %}</span>
@@ -83,7 +83,7 @@ textarea{resize:vertical;}
     </div>
   {% else %}
     <div class="no-portfolio">
-      <p style="font-size:1.5rem;margin-bottom:6px;">📂</p>
+      <p style="font-size:1.5rem;margin-bottom:6px;">{{ icon('folder-open') }}</p>
       <p>No portfolio images uploaded yet.</p>
     </div>
   {% endif %}

@@ -25,7 +25,8 @@
   .nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;color:rgba(255,255,255,0.6);font-size:0.85rem;font-weight:500;transition:all 0.15s;text-decoration:none;margin-bottom:2px;}
   .nav-item:hover{background:rgba(255,255,255,0.07);color:white;}
   .nav-item.active{background:var(--blue);color:white;}
-  .nav-icon{font-size:1rem;width:18px;text-align:center;flex-shrink:0;}
+  .nav-icon{font-size:1rem;width:18px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;}
+  .nav-icon .ic{vertical-align:0;margin:0;}
   .sidebar-bottom{margin-top:auto;padding:16px 12px;border-top:1px solid rgba(255,255,255,0.08);}
 
   /* MAIN */
@@ -37,7 +38,7 @@
   .topbar-sub{font-size:0.75rem;color:var(--text3);}
   .topbar-right{display:flex;align-items:center;gap:12px;}
   .lang-toggle{display:flex;background:var(--bg);border-radius:6px;overflow:hidden;border:1px solid var(--border);}
-  .lang-btn{padding:5px 12px;font-size:0.78rem;font-weight:600;cursor:pointer;color:var(--text2);background:none;border:none;transition:all 0.15s;}
+  .lang-btn{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;font-size:0.78rem;font-weight:600;cursor:pointer;color:var(--text2);background:none;border:none;transition:all 0.15s;}
   .lang-btn.active{background:var(--blue);color:white;}
   .status-pill{background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:0.78rem;font-weight:500;color:var(--text2);display:flex;align-items:center;gap:6px;}
   .status-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
@@ -104,38 +105,39 @@
 </style>
 </head>
 <body>
+{% include '_icons.html' %}
 
 <!-- SIDEBAR -->
 <aside class="sidebar">
   <div class="sidebar-logo">
-    <div class="wordmark">⚡ TechConnect</div>
+    <div class="wordmark">{{ icon('zap', 'ic-t') }}TechConnect</div>
     <div class="sub">Admin Console</div>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-section-label">Overview</div>
-    <a class="nav-item active" href="/admin"><span class="nav-icon">📊</span> Dashboard</a>
-    <a class="nav-item" href="#"><span class="nav-icon">💰</span> Revenue</a>
-    <a class="nav-item" href="#"><span class="nav-icon">🔓</span> Unlocks</a>
+    <a class="nav-item active" href="/admin"><span class="nav-icon">{{ icon('bar-chart') }}</span> Dashboard</a>
+    <a class="nav-item" href="#"><span class="nav-icon">{{ icon('wallet') }}</span> Revenue</a>
+    <a class="nav-item" href="#"><span class="nav-icon">{{ icon('lock-open') }}</span> Unlocks</a>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-section-label">Users</div>
-    <a class="nav-item" href="#"><span class="nav-icon">🔧</span> Technicians</a>
-    <a class="nav-item" href="#"><span class="nav-icon">👤</span> Clients</a>
-    <a class="nav-item" href="#"><span class="nav-icon">✅</span> Verifications</a>
+    <a class="nav-item" href="#"><span class="nav-icon">{{ icon('wrench') }}</span> Technicians</a>
+    <a class="nav-item" href="#"><span class="nav-icon">{{ icon('user') }}</span> Clients</a>
+    <a class="nav-item" href="#"><span class="nav-icon">{{ icon('check-circle') }}</span> Verifications</a>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-section-label">Finance</div>
-    <a class="nav-item" href="#"><span class="nav-icon">🧾</span> Transactions</a>
-    <a class="nav-item" href="#"><span class="nav-icon">📅</span> Subscriptions</a>
-    <a class="nav-item" href="#"><span class="nav-icon">⚠️</span> Retention Alerts</a>
+    <a class="nav-item" href="#"><span class="nav-icon">{{ icon('receipt') }}</span> Transactions</a>
+    <a class="nav-item" href="#"><span class="nav-icon">{{ icon('calendar') }}</span> Subscriptions</a>
+    <a class="nav-item" href="#"><span class="nav-icon">{{ icon('alert-triangle') }}</span> Retention Alerts</a>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-section-label">System</div>
-    <a class="nav-item" href="#"><span class="nav-icon">⚙️</span> Settings</a>
-    <a class="nav-item" href="#"><span class="nav-icon">📤</span> Export Data</a>
+    <a class="nav-item" href="#"><span class="nav-icon">{{ icon('settings') }}</span> Settings</a>
+    <a class="nav-item" href="#"><span class="nav-icon">{{ icon('download') }}</span> Export Data</a>
   </div>
   <div class="sidebar-bottom">
-    <a class="nav-item" href="/admin/logout"><span class="nav-icon">🚪</span> Log Out</a>
+    <a class="nav-item" href="/admin/logout"><span class="nav-icon">{{ icon('log-out') }}</span> Log Out</a>
   </div>
 </aside>
 
@@ -151,8 +153,8 @@
     <div class="topbar-right">
       <button class="refresh-btn" onclick="loadAll()">↻ Refresh</button>
       <div class="lang-toggle">
-        <button class="lang-btn active" onclick="setLang('en',this)">🇬🇧 EN</button>
-        <button class="lang-btn" onclick="setLang('fr',this)">🇫🇷 FR</button>
+        <button class="lang-btn active" onclick="setLang('en',this)">{{ icon('flag-gb', 'ic-flag ic-sm ic-t') }}EN</button>
+        <button class="lang-btn" onclick="setLang('fr',this)">{{ icon('flag-fr', 'ic-flag ic-sm ic-t') }}FR</button>
       </div>
       <div class="status-pill">
         <span class="status-dot"></span>
@@ -171,26 +173,26 @@
         <div class="card-label" id="lbl-revenue">Total Revenue</div>
         <div class="card-value" id="val-revenue"><span class="loading"></span></div>
         <div class="card-delta up" id="delta-revenue">Loading…</div>
-        <div class="card-accent" style="background:#e8f1ff;">💰</div>
+        <div class="card-accent" style="background:#e8f1ff;color:#1a6ef5;">{{ icon('wallet') }}</div>
         <div class="card-unit">RWF</div>
       </div>
       <div class="card">
         <div class="card-label" id="lbl-techs">Active Paid Technicians</div>
         <div class="card-value" id="val-techs"><span class="loading"></span></div>
         <div class="card-delta up" id="delta-techs">Loading…</div>
-        <div class="card-accent" style="background:#d1fae5;">🔧</div>
+        <div class="card-accent" style="background:#d1fae5;color:#059669;">{{ icon('wrench') }}</div>
       </div>
       <div class="card">
         <div class="card-label" id="lbl-unlocks">Total Unlocks Completed</div>
         <div class="card-value" id="val-unlocks"><span class="loading"></span></div>
         <div class="card-delta up" id="delta-unlocks">Loading…</div>
-        <div class="card-accent" style="background:#fef3c7;">🔓</div>
+        <div class="card-accent" style="background:#fef3c7;color:#d97706;">{{ icon('lock-open') }}</div>
       </div>
       <div class="card">
         <div class="card-label" id="lbl-churn">Active Churn Rate</div>
         <div class="card-value" id="val-churn"><span class="loading"></span></div>
         <div class="card-delta down" id="delta-churn">Loading…</div>
-        <div class="card-accent" style="background:#fee2e2;">📉</div>
+        <div class="card-accent" style="background:#fee2e2;color:#dc2626;">{{ icon('trending-down') }}</div>
       </div>
     </div>
 
@@ -376,7 +378,7 @@ async function loadTransactions() {
         <td class="mono">${r.code || '—'}</td>
         <td class="mono">${r.phone || '—'}</td>
         <td class="mono">200</td>
-        <td><span class="badge badge-green">✓ Claimed</span></td>
+        <td><span class="badge badge-green">{{ icon('check','ic-sm') }} Claimed</span></td>
       </tr>
     `).join('');
   } catch(e) {

@@ -9,13 +9,13 @@
         <label for="qualification_type">{{ t.qual_type_label }}</label>
         <select id="qualification_type" name="qualification_type" required>
             <option value="Advanced TVET Certificate V (L5)" {% if technician.qualification_type=='Advanced TVET Certificate V (L5)' %}selected{% endif %}>
-                🎓 Advanced TVET Certificate V (L5) — Rwanda Technical Certificate of Education
+                Advanced TVET Certificate V (L5) — Rwanda Technical Certificate of Education
             </option>
             <option value="Professional Certificate" {% if technician.qualification_type=='Professional Certificate' %}selected{% endif %}>
-                📜 Professional Certificate — Industry / Vocational Credential
+                Professional Certificate — Industry / Vocational Credential
             </option>
             <option value="Degree / Advanced Diploma (L6+)" {% if technician.qualification_type=='Degree / Advanced Diploma (L6+)' %}selected{% endif %}>
-                🏛️ Degree / Advanced Diploma (L6+) — University / Higher Education
+                Degree / Advanced Diploma (L6+) — University / Higher Education
             </option>
         </select>
         <div id="degree_level_wrapper" style="display:none;">

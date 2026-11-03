@@ -18,7 +18,8 @@
 .badge-red{background:#fee2e2;color:#991b1b;}
 .profile-name{font-size:1.45rem;font-weight:700;color:#0f172a;margin:0 0 4px;line-height:1.2;}
 .meta-row{display:flex;align-items:flex-start;gap:10px;font-size:0.87rem;color:#4b5563;margin-bottom:9px;}
-.meta-icon{font-size:0.95rem;flex-shrink:0;margin-top:1px;}
+.meta-icon{font-size:0.95rem;flex-shrink:0;margin-top:1px;color:#64748b;display:inline-flex;}
+.meta-icon .ic{vertical-align:0;margin:0;}
 .meta-label{font-weight:600;color:#374151;}
 .divider{border:none;border-top:1px solid #f1f5f9;margin:24px 0;}
 .bio-box{background:#f8fafc;border-radius:8px;padding:14px 16px;font-size:0.88rem;color:#374151;line-height:1.65;border-left:3px solid #2563eb;margin-bottom:16px;}
@@ -49,7 +50,7 @@ input:checked + .toggle-slider:before{transform:translateX(20px);}
 .port-item{border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);position:relative;}
 .port-item img{width:100%;height:130px;object-fit:cover;display:block;}
 .port-caption{padding:6px 8px;font-size:0.75rem;color:#374151;background:white;}
-.btn-del-img{position:absolute;top:6px;right:6px;background:rgba(239,68,68,0.85);color:white;border:none;border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:700;cursor:pointer;}
+.btn-del-img{display:inline-flex;align-items:center;justify-content:center;position:absolute;top:6px;right:6px;background:rgba(239,68,68,0.85);color:white;border:none;border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:700;cursor:pointer;}
 .upload-form{background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:8px;}
 .upload-form label{font-size:0.82rem;font-weight:600;color:#374151;}
 .upload-form input[type=file]{font-size:0.83rem;color:#374151;}
@@ -81,10 +82,10 @@ input:checked + .toggle-slider:before{transform:translateX(20px);}
     <div class="profile-body">
       <div class="badge-row">
         <span class="badge badge-blue">{{ technician.skill_category }}</span>
-        {% if technician.verification_status == 'Verified' %}<span class="badge badge-green">✓ Verified</span>
-        {% elif technician.certificate_filename %}<span class="badge badge-amber">⏳ Pending Review</span>{% endif %}
-        {% if technician.is_available %}<span class="badge badge-green">● Available for Hire</span>
-        {% else %}<span class="badge badge-red">● Currently Booked</span>{% endif %}
+        {% if technician.verification_status == 'Verified' %}<span class="badge badge-green">{{ icon('check','ic-sm') }} Verified</span>
+        {% elif technician.certificate_filename %}<span class="badge badge-amber">{{ icon('hourglass', 'ic-t') }}Pending Review</span>{% endif %}
+        {% if technician.is_available %}<span class="badge badge-green">{{ icon('dot','ic-sm') }} Available for Hire</span>
+        {% else %}<span class="badge badge-red">{{ icon('dot','ic-sm') }} Currently Booked</span>{% endif %}
         {% if technician.review_count and technician.review_count > 0 %}
           <span class="badge badge-amber">★ {{ technician.avg_rating }} ({{ technician.review_count }})</span>
         {% endif %}
@@ -95,7 +96,7 @@ input:checked + .toggle-slider:before{transform:translateX(20px);}
         {% elif technician.qualification_type == 'Advanced TVET Certificate V (L5)' %}Advanced TVET Certificate V (L5) in {{ technician.degree }}
         {% else %}{{ technician.qualification_type }} in {{ technician.degree }}{% endif %}
       </p>
-      <div class="meta-row"><span class="meta-icon">📍</span><span>{{ technician.sector }}, {{ technician.district }}, {{ technician.province }}</span></div>
+      <div class="meta-row"><span class="meta-icon">{{ icon('map-pin') }}</span><span>{{ technician.sector }}, {{ technician.district }}, {{ technician.province }}</span></div>
 
       <!-- Availability toggle -->
       <div class="avail-toggle">
@@ -112,19 +113,19 @@ input:checked + .toggle-slider:before{transform:translateX(20px);}
       <hr class="divider">
       <div class="contact-box">
         <div class="contact-title">Contact Details</div>
-        <div class="meta-row" style="margin-bottom:7px;"><span class="meta-icon">📞</span><span><span class="meta-label">Phone:</span> {{ technician.phone }}</span></div>
-        {% if technician.whatsapp %}<div class="meta-row" style="margin-bottom:7px;"><span class="meta-icon">💬</span><span><span class="meta-label">WhatsApp:</span> {{ technician.whatsapp }}</span></div>{% endif %}
-        <div class="meta-row" style="margin-bottom:0;"><span class="meta-icon">✉️</span><span><span class="meta-label">Email:</span> {{ technician.email }}</span></div>
+        <div class="meta-row" style="margin-bottom:7px;"><span class="meta-icon">{{ icon('phone') }}</span><span><span class="meta-label">Phone:</span> {{ technician.phone }}</span></div>
+        {% if technician.whatsapp %}<div class="meta-row" style="margin-bottom:7px;"><span class="meta-icon">{{ icon('message-circle') }}</span><span><span class="meta-label">WhatsApp:</span> {{ technician.whatsapp }}</span></div>{% endif %}
+        <div class="meta-row" style="margin-bottom:0;"><span class="meta-icon">{{ icon('mail') }}</span><span><span class="meta-label">Email:</span> {{ technician.email }}</span></div>
       </div>
       {% if technician.certificate_filename %}
       <div class="cert-box">
         <div class="cert-title">Certificate on File</div>
-        <div class="meta-row" style="margin-bottom:6px;"><span class="meta-icon">🎓</span><span style="font-size:0.86rem;color:#1e40af;">{{ technician.qualification_type }}{% if technician.certificate_number %} — No: <strong>{{ technician.certificate_number }}</strong>{% endif %}</span></div>
+        <div class="meta-row" style="margin-bottom:6px;"><span class="meta-icon">{{ icon('graduation-cap') }}</span><span style="font-size:0.86rem;color:#1e40af;">{{ technician.qualification_type }}{% if technician.certificate_number %} — No: <strong>{{ technician.certificate_number }}</strong>{% endif %}</span></div>
         <a class="cert-link" href="{{ url_for('static', filename='uploads/certificates/' + technician.certificate_filename) }}" target="_blank">View Certificate File →</a>
       </div>
       {% endif %}
       <div class="action-row">
-        <a class="btn-edit" href="{{ url_for('edit_profile') }}">✏️ {{ t.edit_btn }}</a>
+        <a class="btn-edit" href="{{ url_for('edit_profile') }}">{{ icon('pencil', 'ic-t') }}{{ t.edit_btn }}</a>
         <form method="POST" action="{{ url_for('delete_profile') }}" onsubmit="return confirm('Are you sure you want to permanently delete your profile?');" style="margin:0;">
           <button type="submit" class="btn-delete">{{ t.delete_btn }}</button>
         </form>
@@ -134,7 +135,7 @@ input:checked + .toggle-slider:before{transform:translateX(20px);}
 
   <!-- Portfolio section -->
   <div class="section-card">
-    <h2 class="section-heading">📸 My Portfolio ({{ portfolio|length }})</h2>
+    <h2 class="section-heading">{{ icon('camera', 'ic-t') }}My Portfolio ({{ portfolio|length }})</h2>
     {% if portfolio %}
     <div class="portfolio-grid">
       {% for img in portfolio %}
@@ -142,7 +143,7 @@ input:checked + .toggle-slider:before{transform:translateX(20px);}
         <img src="{{ url_for('static', filename=img.image_url) }}" alt="{{ img.caption or 'Portfolio image' }}">
         {% if img.caption %}<div class="port-caption">{{ img.caption }}</div>{% endif %}
         <form method="POST" action="{{ url_for('portfolio_delete', image_id=img.id) }}" style="display:inline;" onsubmit="return confirm('Remove this image?');">
-          <button type="submit" class="btn-del-img">✕</button>
+          <button type="submit" class="btn-del-img" aria-label="Remove image">{{ icon('x','ic-sm') }}</button>
         </form>
       </div>
       {% endfor %}
@@ -159,7 +160,7 @@ input:checked + .toggle-slider:before{transform:translateX(20px);}
   <!-- Reviews -->
   {% if reviews %}
   <div class="section-card">
-    <h2 class="section-heading">⭐ Client Reviews ({{ reviews|length }})</h2>
+    <h2 class="section-heading">{{ icon('star', 'ic-t') }}Client Reviews ({{ reviews|length }})</h2>
     {% for rv in reviews %}
     <div class="review-item">
       <div style="display:flex;justify-content:space-between;align-items:center;">

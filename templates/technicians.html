@@ -8,8 +8,9 @@
 .access-banner.locked{background:#eff6ff;border:1px solid #bfdbfe;}
 .access-banner-left{display:flex;align-items:center;gap:12px;}
 .access-banner-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;}
-.access-banner.active .access-banner-icon{background:#d1fae5;}
-.access-banner.locked .access-banner-icon{background:#dbeafe;}
+.access-banner.active .access-banner-icon{background:#d1fae5;color:#059669;}
+.access-banner-icon .ic{width:20px;height:20px;vertical-align:0;margin:0;}
+.access-banner.locked .access-banner-icon{background:#dbeafe;color:#2563eb;}
 .access-banner-title{font-weight:700;font-size:0.9rem;margin:0 0 2px;}
 .access-banner.active .access-banner-title{color:#065f46;}
 .access-banner.locked .access-banner-title{color:#1e40af;}
@@ -70,7 +71,7 @@ button.btn-portfolio{cursor:pointer;font-family:inherit;}
 .pm-backdrop.open{display:flex;}
 .pm-dialog{background:#fff;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,0.25);width:100%;max-width:640px;margin:auto;overflow:hidden;}
 .pm-head{display:flex;align-items:center;gap:14px;padding:20px 22px;border-bottom:1px solid #f1f5f9;}
-.pm-close{margin-left:auto;background:#f1f5f9;border:none;border-radius:8px;width:34px;height:34px;font-size:1rem;cursor:pointer;color:#475569;flex-shrink:0;}
+.pm-close{display:flex;align-items:center;justify-content:center;margin-left:auto;background:#f1f5f9;border:none;border-radius:8px;width:34px;height:34px;font-size:1rem;cursor:pointer;color:#475569;flex-shrink:0;}
 .pm-close:hover{background:#e2e8f0;}
 .pm-body{padding:20px 22px 24px;}
 .pm-section{font-size:0.72rem;font-weight:700;color:#6b7280;letter-spacing:1px;text-transform:uppercase;margin:20px 0 10px;}
@@ -92,14 +93,14 @@ body.pm-open{overflow:hidden;}
 {% if has_access %}
 <div class="access-banner active">
   <div class="access-banner-left">
-    <div class="access-banner-icon">✅</div>
+    <div class="access-banner-icon">{{ icon('check-circle') }}</div>
     <div><p class="access-banner-title">Contact Access Active</p><p class="access-banner-sub">{{ t.access_active }} <strong id="accessCountdown"></strong></p></div>
   </div>
 </div>
 {% else %}
 <div class="access-banner locked">
   <div class="access-banner-left">
-    <div class="access-banner-icon">🔒</div>
+    <div class="access-banner-icon">{{ icon('lock') }}</div>
     <div><p class="access-banner-title">Contact Details Are Hidden</p><p class="access-banner-sub">Pay 200 RWF for 24-hour access to all technician contacts.</p></div>
   </div>
   <a href="{{ url_for('pay') }}" class="btn-unlock">Unlock — 200 RWF</a>
@@ -126,8 +127,8 @@ body.pm-open{overflow:hidden;}
       <select name="sector" id="sector" {% if not search_district %}disabled{% endif %}><option value="">{% if search_district %}{{ t.all_sectors }}{% else %}{{ t.select_district }}{% endif %}</option>{% if search_district and search_sector %}<option value="{{ search_sector }}" selected>{{ search_sector }}</option>{% endif %}</select>
     </div>
     <div class="filter-row">
-      <label class="filter-chip"><input type="checkbox" name="available" value="1" {% if search_available %}checked{% endif %}> ● Available now</label>
-      <label class="filter-chip"><input type="checkbox" name="verified" value="1" {% if search_verified %}checked{% endif %}> ✓ Verified only</label>
+      <label class="filter-chip"><input type="checkbox" name="available" value="1" {% if search_available %}checked{% endif %}> {{ icon('dot','ic-sm') }} Available now</label>
+      <label class="filter-chip"><input type="checkbox" name="verified" value="1" {% if search_verified %}checked{% endif %}> {{ icon('check','ic-sm') }} Verified only</label>
     </div>
     <div style="display:flex;gap:10px;margin-top:18px;">
       <button type="submit" class="btn-search">{{ t.search_btn }}</button>
@@ -148,36 +149,36 @@ body.pm-open{overflow:hidden;}
     <div class="tc-body">
       <div class="badge-row">
         <span class="badge badge-blue">{{ tech.skill_category }}</span>
-        {% if tech.is_available %}<span class="badge badge-green">● Available</span>
-        {% else %}<span class="badge badge-red">● Booked</span>{% endif %}
-        {% if tech.verification_status == 'Verified' %}<span class="badge badge-green">✓ Verified</span>{% else %}<span class="badge badge-amber">⏳ Pending Review</span>{% endif %}
-        <span class="badge badge-slate">🎓 {% if tech.qualification_type == 'Advanced TVET Certificate V (L5)' %}TVET Certificate V (L5){% elif tech.qualification_type == 'Degree / Advanced Diploma (L6+)' %}{{ tech.degree_level or 'Degree / Adv. Diploma' }}{% else %}Professional Certificate{% endif %}</span>
+        {% if tech.is_available %}<span class="badge badge-green">{{ icon('dot','ic-sm') }} Available</span>
+        {% else %}<span class="badge badge-red">{{ icon('dot','ic-sm') }} Booked</span>{% endif %}
+        {% if tech.verification_status == 'Verified' %}<span class="badge badge-green">{{ icon('check','ic-sm') }} Verified</span>{% else %}<span class="badge badge-amber">{{ icon('hourglass', 'ic-t') }}Pending Review</span>{% endif %}
+        <span class="badge badge-slate">{{ icon('graduation-cap', 'ic-t') }}{% if tech.qualification_type == 'Advanced TVET Certificate V (L5)' %}TVET Certificate V (L5){% elif tech.qualification_type == 'Degree / Advanced Diploma (L6+)' %}{{ tech.degree_level or 'Degree / Adv. Diploma' }}{% else %}Professional Certificate{% endif %}</span>
         {% if tech.review_count and tech.review_count > 0 %}<span class="badge badge-amber"><span class="stars">{% for i in range(tech.avg_rating|int) %}★{% endfor %}</span> {{ tech.avg_rating }} ({{ tech.review_count }})</span>{% endif %}
       </div>
       <h3 class="tc-name">{{ tech.full_name }}</h3>
       <p class="tc-qual">{% if tech.qualification_type == 'Degree / Advanced Diploma (L6+)' %}{{ tech.degree_level }} in {{ tech.degree }}{% elif tech.qualification_type == 'Advanced TVET Certificate V (L5)' %}Advanced TVET Certificate V (L5) in {{ tech.degree }}{% else %}{{ tech.qualification_type }} in {{ tech.degree }}{% endif %}</p>
-      <div class="tc-location"><span>📍</span><span><strong>{{ tech.sector }}</strong>, {{ tech.district }}, {{ tech.province }}</span></div>
+      <div class="tc-location"><span>{{ icon('map-pin') }}</span><span><strong>{{ tech.sector }}</strong>, {{ tech.district }}, {{ tech.province }}</span></div>
       {% if tech.bio %}<p class="tc-bio">{{ tech.bio }}</p>{% endif %}
       <div class="tc-actions">
-        <button type="button" class="btn-portfolio" data-preview="{{ tech.id }}">👁 View Profile &amp; Portfolio{% if port_counts.get(tech.id, 0) > 0 %} ({{ port_counts.get(tech.id, 0) }}){% endif %}</button>
+        <button type="button" class="btn-portfolio" data-preview="{{ tech.id }}">{{ icon('eye', 'ic-t') }}View Profile &amp; Portfolio{% if port_counts.get(tech.id, 0) > 0 %} ({{ port_counts.get(tech.id, 0) }}){% endif %}</button>
       </div>
       {% if has_access %}
         <div class="contact-revealed">
-          <span>📞 <strong>{{ tech.phone }}</strong></span>
-          {% if tech.whatsapp %}<span>💬 <strong>{{ tech.whatsapp }}</strong></span>{% endif %}
-          {% if tech.email %}<span>✉️ {{ tech.email }}</span>{% endif %}
+          <span>{{ icon('phone', 'ic-t') }}<strong>{{ tech.phone }}</strong></span>
+          {% if tech.whatsapp %}<span>{{ icon('message-circle', 'ic-t') }}<strong>{{ tech.whatsapp }}</strong></span>{% endif %}
+          {% if tech.email %}<span>{{ icon('mail', 'ic-t') }}{{ tech.email }}</span>{% endif %}
         </div>
       {% else %}
         <div class="contact-locked">
-          <div class="contact-locked-left"><span>📞 ••••••••••</span>{% if tech.whatsapp %}<span>💬 ••••••••••</span>{% endif %}{% if tech.email %}<span>✉️ ••••@••••</span>{% endif %}</div>
-          <a href="{{ url_for('pay') }}" class="btn-pay">🔓 {{ t.unlock_contact }}</a>
+          <div class="contact-locked-left"><span>{{ icon('phone', 'ic-t') }}••••••••••</span>{% if tech.whatsapp %}<span>{{ icon('message-circle', 'ic-t') }}••••••••••</span>{% endif %}{% if tech.email %}<span>{{ icon('mail', 'ic-t') }}••••@••••</span>{% endif %}</div>
+          <a href="{{ url_for('pay') }}" class="btn-pay">{{ icon('lock-open', 'ic-t') }}{{ t.unlock_contact }}</a>
         </div>
       {% endif %}
     </div>
   </div>
   {% endfor %}
 {% else %}
-  <div class="empty-state"><p style="font-size:1.5rem;margin-bottom:8px;">🔍</p><p>{{ t.no_technicians }} {{ t.try_removing }}</p><p style="margin-top:8px;"><a href="{{ url_for('register') }}">{{ t.signup_first }}</a></p></div>
+  <div class="empty-state"><p style="font-size:1.5rem;margin-bottom:8px;">{{ icon('search') }}</p><p>{{ t.no_technicians }} {{ t.try_removing }}</p><p style="margin-top:8px;"><a href="{{ url_for('register') }}">{{ t.signup_first }}</a></p></div>
 {% endif %}
 </div>
 
@@ -186,7 +187,7 @@ body.pm-open{overflow:hidden;}
     <div class="pm-head">
       <div id="pmAvatar"></div>
       <div style="min-width:0;"><h3 id="pmTitle" style="margin:0;font-size:1.1rem;color:#0f172a;">Loading…</h3><div id="pmSub" style="font-size:0.82rem;color:#6b7280;margin-top:2px;"></div></div>
-      <button type="button" class="pm-close" id="pmClose" aria-label="Close preview">✕</button>
+      <button type="button" class="pm-close" id="pmClose" aria-label="Close preview">{{ icon('x','ic-md') }}</button>
     </div>
     <div class="pm-body" id="pmBody"></div>
   </div>
@@ -201,6 +202,9 @@ const HAS_ACCESS={{ 'true' if has_access else 'false' }}, PAY_URL="{{ url_for('p
 const pmBackdrop=document.getElementById('pmBackdrop'),pmBody=document.getElementById('pmBody'),pmTitle=document.getElementById('pmTitle'),pmSub=document.getElementById('pmSub'),pmAvatar=document.getElementById('pmAvatar'),pmClose=document.getElementById('pmClose');
 let pmLastFocus=null;
 function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;}
+const SVGNS='http://www.w3.org/2000/svg';
+function ic(name,cls){const s=document.createElementNS(SVGNS,'svg');s.setAttribute('class','ic'+(cls?' '+cls:''));s.setAttribute('fill','none');s.setAttribute('stroke','currentColor');s.setAttribute('stroke-width','1.75');s.setAttribute('stroke-linecap','round');s.setAttribute('stroke-linejoin','round');s.setAttribute('aria-hidden','true');const u=document.createElementNS(SVGNS,'use');u.setAttribute('href','#i-'+name);s.appendChild(u);return s;}
+function badge(cls,iconName,text){const b=el('span','badge '+cls);b.appendChild(ic(iconName,'ic-sm'));b.appendChild(document.createTextNode(text));return b;}
 function stars(n){return '★'.repeat(Math.max(0,Math.min(5,n)));}
 function closePreview(){pmBackdrop.classList.remove('open');pmBackdrop.setAttribute('aria-hidden','true');document.body.classList.remove('pm-open');if(pmLastFocus)pmLastFocus.focus();}
 function renderPreview(d){
@@ -210,9 +214,9 @@ function renderPreview(d){
   if(d.photo){const i=el('img','tc-avatar');i.src=d.photo;i.alt=d.full_name;pmAvatar.appendChild(i);}else{pmAvatar.appendChild(el('div','tc-avatar-placeholder',d.full_name.charAt(0).toUpperCase()));}
   pmBody.replaceChildren();
   const badges=el('div','badge-row');
-  badges.appendChild(el('span','badge '+(d.is_available?'badge-green':'badge-red'),d.is_available?'● Available for Hire':'● Currently Booked'));
-  badges.appendChild(el('span','badge '+(d.verified?'badge-green':'badge-amber'),d.verified?'✓ Verified':'⏳ Pending Review'));
-  badges.appendChild(el('span','badge badge-slate','🎓 '+d.qualification));
+  badges.appendChild(badge(d.is_available?'badge-green':'badge-red','dot',d.is_available?'Available for Hire':'Currently Booked'));
+  badges.appendChild(d.verified?badge('badge-green','check','Verified'):badge('badge-amber','hourglass','Pending Review'));
+  badges.appendChild(badge('badge-slate','graduation-cap',d.qualification));
   if(d.review_count>0)badges.appendChild(el('span','badge badge-amber',stars(Math.round(d.avg_rating))+' '+d.avg_rating+' ('+d.review_count+')'));
   pmBody.appendChild(badges);
   pmBody.appendChild(el('div','pm-section','About'));
@@ -229,7 +233,7 @@ function renderPreview(d){
   const more=el('a','',  'See all reviews / leave a review →');more.href=PORTFOLIO_URL+d.id;more.style.cssText='display:inline-block;margin-top:10px;font-size:0.84rem;font-weight:600;color:#2563eb;text-decoration:none;';pmBody.appendChild(more);
   const cta=el('div','pm-cta');
   cta.appendChild(el('span','',HAS_ACCESS?'Contact access is active — details are shown on the card.':'Like what you see? Unlock phone, WhatsApp and email for 24 hours.'));
-  if(!HAS_ACCESS){const b=el('a','btn-unlock','🔓 Unlock — 200 RWF');b.href=PAY_URL;cta.appendChild(b);}
+  if(!HAS_ACCESS){const b=el('a','btn-unlock');b.appendChild(ic('lock-open','ic-t'));b.appendChild(document.createTextNode('Unlock — 200 RWF'));b.href=PAY_URL;cta.appendChild(b);}
   pmBody.appendChild(cta);
 }
 async function openPreview(id,trigger){
