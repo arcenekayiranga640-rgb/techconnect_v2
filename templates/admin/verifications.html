@@ -1,0 +1,29 @@
+{% extends 'admin/_layout.html' %}
+{% from 'admin/_macros.html' import csrf, plan_badge, verify_badge, pager with context %}
+{% block title %}Verifications{% endblock %}
+{% block heading %}Verifications{% endblock %}
+{% block subheading %}Review certificates and grant or withhold the verified badge{% endblock %}
+{% block content %}
+<div class="tabs">{% for key, label in [('pending','Pending review'),('rejected','Rejected'),('verified','Verified')] %}<a class="tab {{ 'on' if tab == key }}" href="?{{ qs(tab=key, page=None) }}">{{ label }}<em>{{ tabs[key] }}</em></a>{% endfor %}</div>
+{% if not rows %}<div class="panel"><div class="empty">{{ icon('check-circle','ic-xl') }}<p style="margin-top:8px">Nothing in this queue.</p></div></div>{% endif %}
+<div class="grid g2">
+{% for t in rows %}
+  <div class="panel" style="margin:0"><div class="panel-h"><div><h2>{{ t.full_name }}</h2><span class="sub">{{ t.skill_category }} · registered {{ t.created_at|cat_date }}</span></div><div class="right">{{ verify_badge(t.verification_status) }}</div></div>
+    <div class="panel-b"><dl class="kv">
+      <dt>Qualification</dt><dd>{{ t.qualification_type }}{% if t.degree_level %} ({{ t.degree_level }}){% endif %}</dd>
+      <dt>Field of study</dt><dd>{{ t.degree }}</dd>
+      <dt>Certificate / index no.</dt><dd class="mono">{{ t.certificate_number or '—' }}</dd>
+      <dt>Location</dt><dd>{{ t.sector }}, {{ t.district }}, {{ t.province }}</dd>
+      <dt>Contact</dt><dd>{{ t.phone }} · {{ t.email }}</dd>
+      <dt>Subscription</dt><dd>{{ plan_badge(t) }}</dd></dl>
+      <div class="actions" style="margin-top:16px">
+        {% if t.certificate_filename %}<a class="btn ghost sm" href="{{ url_for('certificate_file', filename=t.certificate_filename) }}" target="_blank" rel="noopener">{{ icon('file-text','ic-sm') }} Open certificate</a>{% else %}<span class="badge amber">No certificate on file</span>{% endif %}
+        {% if not t.verified %}<form method="post" action="{{ url_for('admin.tech_verify', tid=t.id) }}">{{ csrf() }}<input type="hidden" name="action" value="verify"><button class="btn success sm">{{ icon('check','ic-sm') }} Approve</button></form>{% endif %}
+        {% if t.verification_status != 'Rejected' %}<form method="post" action="{{ url_for('admin.tech_verify', tid=t.id) }}">{{ csrf() }}<input type="hidden" name="action" value="reject"><button class="btn danger sm">{{ icon('x','ic-sm') }} Reject</button></form>{% endif %}
+        {% if t.verified %}<form method="post" action="{{ url_for('admin.tech_verify', tid=t.id) }}">{{ csrf() }}<input type="hidden" name="action" value="unverify"><button class="btn ghost sm">Revoke badge</button></form>{% endif %}
+        {% if not t.is_suspended %}<button class="btn danger sm" data-suspend data-id="{{ t.id }}" data-name="{{ t.full_name }}">{{ icon('ban','ic-sm') }} Suspend</button>{% endif %}
+      </div></div></div>
+{% endfor %}</div>
+<div class="panel" style="margin-top:16px">{{ pager(pg) }}</div>
+{% include 'admin/_tech_modals.html' %}
+{% endblock %}

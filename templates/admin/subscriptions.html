@@ -1,0 +1,28 @@
+{% extends 'admin/_layout.html' %}
+{% from 'admin/_macros.html' import stat, csrf, plan_badge, days_cell, pager with context %}
+{% block title %}Subscriptions{% endblock %}
+{% block heading %}Subscriptions{% endblock %}
+{% block subheading %}Technician plans: 1-Month 3,000 RWF · 3-Month 7,000 RWF · 7-day free trial{% endblock %}
+{% block actions %}<a class="btn ghost sm" href="{{ url_for('admin.export_csv', kind='subscriptions') }}">{{ icon('download','ic-sm') }} Export active</a>{% endblock %}
+{% block content %}
+<div class="grid g6">
+  {{ stat('1-Month', m.active_1m, 'active', 'user-check', 'green') }}{{ stat('3-Month', m.active_3m, 'active', 'shield-check', 'green') }}{{ stat('Free trial', m.active_trial, 'active', 'sparkles', 'slate') }}
+  {{ stat('Expiring ≤ 7 days', m.expiring_7d, 'active plans', 'bell', 'amber') }}{{ stat('Expired', m.expired, 'need renewal', 'clock', 'red') }}{{ stat('No plan', m.no_plan, 'revoked / never', 'x-circle', 'slate') }}
+</div>
+<div class="tabs" style="margin-top:18px">
+  {% for key, label in [('active','Active'),('expiring','Expiring ≤ 7d'),('expired','Expired'),('none','No plan'),('all','All')] %}<a class="tab {{ 'on' if state == key }}" href="?{{ qs(state=key, page=None) }}">{{ label }}</a>{% endfor %}
+  <span style="width:14px"></span>
+  {% for key, label in [('all','Any plan'),('trial','Trial'),('1-month','1-Month'),('3-month','3-Month')] %}<a class="tab {{ 'on' if plan == key }}" href="?{{ qs(plan=key, page=None) }}">{{ label }}</a>{% endfor %}
+</div>
+<div class="panel"><div class="tbl-wrap"><table><thead><tr><th>Technician</th><th>Plan</th><th>Expires (CAT)</th><th>Time left</th><th>Contact</th><th></th></tr></thead><tbody>
+  {% for t in rows %}<tr class="{{ 'danger' if t.sub_state == 'expired' else ('warn' if t.days_left is not none and t.days_left <= 5 and t.sub_state == 'active') }}">
+    <td><strong>{{ t.full_name }}</strong><div class="muted">{{ t.skill_category }}</div></td><td>{{ plan_badge(t) }}</td><td class="nowrap">{{ t.subscription_expires|cat_date if t.subscription_expires else '—' }}</td><td>{{ days_cell(t) }}</td>
+    <td>{{ t.phone }}<div class="muted">{{ t.email }}</div></td>
+    <td class="right-al"><button class="btn ghost sm" data-sub data-id="{{ t.id }}" data-name="{{ t.full_name }}" data-plan="{{ t.plan_label }}" data-pref="extend">{{ icon('rotate-cw','ic-sm') }} Manage</button></td></tr>
+  {% else %}<tr><td colspan="6" class="empty">No technicians in this view.</td></tr>{% endfor %}</tbody></table></div>{{ pager(pg) }}</div>
+<div class="panel"><div class="panel-h"><h2>Recent subscription payments</h2><div class="right"><a class="btn ghost sm" href="{{ url_for('admin.transactions', type='subscription') }}">View all</a></div></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Recorded (CAT)</th><th>Technician</th><th>Plan</th><th>Method</th><th>Reference</th><th class="right-al">RWF</th></tr></thead><tbody>
+  {% for p in payments %}<tr><td class="nowrap">{{ p.created_at|cat_dt }}</td><td><strong>{{ p.technician_name }}</strong></td><td>{{ PLAN_LABELS.get(p.plan, p.plan) }}</td><td>{{ p.method|capitalize }}</td><td class="mono">{{ p.reference or '—' }}</td><td class="right-al"><strong>{{ p.amount|rwf }}</strong></td></tr>
+  {% else %}<tr><td colspan="6" class="empty">No subscription payments recorded yet. Use <strong>Manage</strong> above to record cash or direct transfers.</td></tr>{% endfor %}</tbody></table></div></div>
+{% include 'admin/_tech_modals.html' %}
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends 'admin/_layout.html' %}
+{% from 'admin/_macros.html' import stat, csrf with context %}
+{% block title %}Client {{ phone }}{% endblock %}
+{% block heading %}{{ phone }}{% endblock %}
+{% block subheading %}Client payment history and TNX audit trail{% endblock %}
+{% block actions %}<a class="btn ghost sm" href="{{ url_for('admin.clients') }}">{{ icon('chevron-left','ic-sm') }} All clients</a>{% endblock %}
+{% block content %}
+<div class="grid g3">
+  {{ stat('Unlocks', rows|length, '', 'lock-open', 'amber') }}{{ stat('Total paid (RWF)', paid|rwf, 'Voided excluded', 'wallet', 'blue') }}{{ stat('Blocked reuse attempts', attempts|length, '', 'shield-check', 'green') }}
+</div>
+<div class="panel" style="margin-top:18px"><div class="panel-h"><h2>TNX audit records</h2></div><div class="tbl-wrap"><table>
+  <thead><tr><th>Unlocked (CAT)</th><th>TNX / MoMo reference</th><th>Technician unlocked</th><th class="right-al">RWF</th><th>Access</th><th>IP</th></tr></thead><tbody>
+  {% for r in rows %}<tr class="{{ 'dim' if r.status == 'voided' }}"><td class="nowrap">{{ r.created_at|cat_dt }}</td><td class="mono">{{ r.tnx_code }}</td><td>{{ r.technician_name }}</td><td class="right-al">{{ r.amount|rwf }}</td>
+    <td>{% if r.status == 'voided' %}<span class="badge red">Voided</span><div class="muted">{{ r.void_reason }}</div>{% elif r.live %}<span class="badge green">Active until {{ r.expires_at|cat_dt }}</span>{% else %}<span class="badge slate">Expired</span>{% endif %}</td><td class="mono muted">{{ r.ip or '—' }}</td></tr>
+  {% else %}<tr><td colspan="6" class="empty">No successful unlocks for this number.</td></tr>{% endfor %}</tbody></table></div></div>
+{% if attempts %}<div class="panel"><div class="panel-h"><h2>Blocked reuse attempts by this number</h2></div><div class="tbl-wrap"><table><thead><tr><th>When</th><th>Code</th><th>IP</th></tr></thead><tbody>
+  {% for a in attempts %}<tr><td class="nowrap">{{ a.attempted_at|cat_dt }}</td><td class="mono">{{ a.tnx_code }}</td><td class="mono muted">{{ a.ip or '—' }}</td></tr>{% endfor %}</tbody></table></div></div>{% endif %}
+{% endblock %}

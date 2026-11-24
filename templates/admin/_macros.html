@@ -1,0 +1,18 @@
+{% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path.rstrip('?') }}">{% endmacro %}
+
+{% macro stat(label, value, sub='', ico='activity', tone='blue') %}
+<div class="stat"><span class="ic-box{% if tone != 'blue' %} ic-box-{{ tone }}{% endif %}">{{ icon(ico) }}</span>
+  <div><div class="stat-label">{{ label }}</div><div class="stat-value">{{ value }}</div>{% if sub %}<div class="stat-sub">{{ sub }}</div>{% endif %}</div></div>
+{% endmacro %}
+
+{% macro plan_badge(t) %}{% if t.sub_state == 'suspended' %}<span class="badge red">Suspended</span>{% elif t.sub_state == 'none' %}<span class="badge slate">No plan</span>{% else %}<span class="badge {% if t.sub_state == 'expired' %}red{% elif t.subscription_plan == '3-month' %}green{% elif t.subscription_plan == '1-month' %}blue{% else %}amber{% endif %}">{{ t.plan_label }}{% if t.sub_state == 'expired' %} · expired{% endif %}</span>{% endif %}{% endmacro %}
+
+{% macro verify_badge(status) %}{% if status == 'Verified' %}<span class="badge green">{{ icon('shield-check','ic-sm') }} Verified</span>{% elif status == 'Rejected' %}<span class="badge red">Rejected</span>{% else %}<span class="badge amber">{{ icon('hourglass','ic-sm') }} Pending</span>{% endif %}{% endmacro %}
+
+{% macro days_cell(t) %}{% if t.subscription_expires %}{% if t.sub_state == 'expired' %}<span class="badge red">Expired</span>{% elif t.days_left is not none %}<span class="badge {% if t.days_left <= 1 %}red{% elif t.days_left <= 5 %}amber{% else %}slate{% endif %}">{{ t.days_left }} day{{ '' if t.days_left == 1 else 's' }}</span>{% endif %}{% else %}<span class="muted">—</span>{% endif %}{% endmacro %}
+
+{% macro pager(pg) %}{% if pg.pages > 1 %}
+<div class="pager"><span class="muted">Page {{ pg.page }} of {{ pg.pages }} · {{ pg.total }} records</span>
+  <div>{% if pg.has_prev %}<a class="btn ghost sm" href="?{{ qs(page=pg.page - 1) }}">{{ icon('chevron-left','ic-sm') }} Prev</a>{% endif %}
+       {% if pg.has_next %}<a class="btn ghost sm" href="?{{ qs(page=pg.page + 1) }}">Next {{ icon('chevron-right','ic-sm') }}</a>{% endif %}</div></div>
+{% endif %}{% endmacro %}

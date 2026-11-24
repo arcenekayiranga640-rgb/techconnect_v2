@@ -121,7 +121,7 @@ input:checked + .toggle-slider:before{transform:translateX(20px);}
       <div class="cert-box">
         <div class="cert-title">Certificate on File</div>
         <div class="meta-row" style="margin-bottom:6px;"><span class="meta-icon">{{ icon('graduation-cap') }}</span><span style="font-size:0.86rem;color:#1e40af;">{{ technician.qualification_type }}{% if technician.certificate_number %} — No: <strong>{{ technician.certificate_number }}</strong>{% endif %}</span></div>
-        <a class="cert-link" href="{{ url_for('static', filename='uploads/certificates/' + technician.certificate_filename) }}" target="_blank">View Certificate File →</a>
+        <a class="cert-link" href="{{ url_for('certificate_file', filename=technician.certificate_filename) }}" target="_blank">View Certificate File →</a>
       </div>
       {% endif %}
       <div class="action-row">

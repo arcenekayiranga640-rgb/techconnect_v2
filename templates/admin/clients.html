@@ -1,0 +1,41 @@
+{% extends 'admin/_layout.html' %}
+{% from 'admin/_macros.html' import stat, pager with context %}
+{% block title %}Clients{% endblock %}
+{% block heading %}Clients &amp; TNX Audit{% endblock %}
+{% block subheading %}Clients who paid to unlock contacts · every payment reference is permanently recorded{% endblock %}
+{% block actions %}<a class="btn ghost sm" href="{{ url_for('admin.export_csv', kind='unlock-ledger') }}">{{ icon('download','ic-sm') }} Export CSV</a>{% endblock %}
+{% block content %}
+<div class="grid g4">
+  {{ stat('Unique clients', m.unlock_clients, 'By phone number', 'users', 'blue') }}
+  {{ stat('TNX codes locked', m.unlocks + m.unlocks_voided, 'Each usable once', 'lock', 'slate') }}
+  {{ stat('Reuse attempts blocked', m.reuse_blocked, 'Same code submitted again', 'shield-check', 'green') }}
+  {{ stat('Voided payments', m.unlocks_voided, 'Flagged by admin', 'ban', 'red') }}
+</div>
+<div class="grid g32" style="margin-top:18px;align-items:start">
+  <div class="panel">
+    <form class="filters" method="get">
+      <div class="field grow"><label class="lbl">Find client by phone</label><input type="search" name="q" value="{{ args.get('q','') }}" placeholder="e.g. 0788123456"></div>
+      <button class="btn primary" type="submit">{{ icon('search','ic-sm') }} Search</button><a class="btn ghost" href="{{ url_for('admin.clients') }}">Reset</a></form>
+    <div class="tbl-wrap"><table><thead><tr><th>Client phone</th><th>TNX audit records</th><th class="right-al">Unlocks</th><th class="right-al">Paid RWF</th><th>Last unlock</th></tr></thead><tbody>
+    {% for g in groups %}<tr><td><a href="{{ url_for('admin.client_detail', phone=g.client_phone) }}"><strong>{{ g.client_phone }}</strong></a></td>
+      <td><div class="chips">{% for r in recs[g.client_phone][:3] %}<div class="chip"><span class="mono">{{ r.tnx_code }}</span><span>{{ r.technician_name }}</span><span class="muted">{{ r.created_at|cat_dt }}</span>{% if r.status == 'voided' %}<span class="badge red">Voided</span>{% endif %}</div>{% endfor %}
+        {% if recs[g.client_phone]|length > 3 %}<a class="muted" href="{{ url_for('admin.client_detail', phone=g.client_phone) }}">+ {{ recs[g.client_phone]|length - 3 }} more…</a>{% endif %}</div></td>
+      <td class="right-al">{{ g.n }}</td><td class="right-al"><strong>{{ g.paid|rwf }}</strong></td><td class="nowrap">{{ g.last_at|cat_dt }}</td></tr>
+    {% else %}<tr><td colspan="5" class="empty">No clients yet.</td></tr>{% endfor %}</tbody></table></div>
+    {{ pager(pg) }}
+  </div>
+  <div>
+    <div class="panel"><div class="panel-h"><h2>TNX lookup</h2></div><div class="panel-b">
+      <form method="get" style="display:flex;gap:8px"><input type="text" name="tnx" value="{{ args.get('tnx','') }}" placeholder="Paste a TNX / MoMo reference" style="flex:1"><button class="btn primary">Check</button></form>
+      {% if lookup %}<div style="margin-top:14px">
+        {% if lookup.row %}<div class="banner danger" style="margin:0">{{ icon('lock','ic-md') }}<div><strong>Already used</strong> — <span class="mono">{{ lookup.code }}</span><br>
+          {{ lookup.row.created_at|cat_dt }} · {{ lookup.row.client_phone }} · {{ lookup.row.technician_name }}{% if lookup.row.status == 'voided' %} · <strong>voided</strong>{% endif %}</div></div>
+        {% else %}<div class="banner info" style="margin:0">{{ icon('check-circle','ic-md') }}<div><strong>Not used yet</strong> — <span class="mono">{{ lookup.code }}</span> has no record.</div></div>{% endif %}</div>{% endif %}
+    </div></div>
+    <div class="panel"><div class="panel-h"><h2>Blocked reuse attempts</h2><span class="sub">Latest 15</span></div>
+      <div class="tbl-wrap"><table><thead><tr><th>When</th><th>Code</th><th>Tried by</th></tr></thead><tbody>
+      {% for a in attempts %}<tr><td class="nowrap">{{ a.attempted_at|cat_dt }}</td><td class="mono">{{ a.tnx_code }}</td><td>{{ a.client_phone or '—' }}{% if a.owner_phone and a.owner_phone != a.client_phone %}<div class="muted">original owner {{ a.owner_phone }}</div>{% endif %}</td></tr>
+      {% else %}<tr><td colspan="3" class="empty">No reuse attempts recorded.</td></tr>{% endfor %}</tbody></table></div></div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends 'admin/_layout.html' %}
+{% from 'admin/_macros.html' import csrf with context %}
+{% block title %}Settings{% endblock %}
+{% block heading %}Settings{% endblock %}
+{% block subheading %}Automation, security and the admin audit log{% endblock %}
+{% block content %}
+{% if info.default_pw %}<div class="banner danger">{{ icon('alert-triangle','ic-lg') }}<div class="grow"><strong>Default admin password in use.</strong> Change it below, or set an <code>ADMIN_PASSWORD</code> environment variable on your host.</div></div>{% endif %}
+<div class="grid g2" style="align-items:start">
+  <div>
+    <div class="panel"><div class="panel-h"><h2>Automation &amp; visibility</h2></div><div class="panel-b">
+      <form method="post">{{ csrf() }}
+        <label class="inline-check" style="margin-bottom:6px"><input type="checkbox" name="retention_enabled" value="1" {{ 'checked' if cfg.retention_enabled == '1' }}> <strong>Send automatic reminder emails</strong></label>
+        <p class="muted" style="margin:0 0 16px 26px;font-size:.8rem">Emails technicians 7, 3 and 1 day before their plan expires. Checked hourly and shortly after the server starts.</p>
+        <label class="inline-check" style="margin-bottom:6px"><input type="checkbox" name="enforce_expiry" value="1" {{ 'checked' if cfg.enforce_expiry == '1' }}> <strong>Hide technicians whose plan has expired</strong></label>
+        <p class="muted" style="margin:0 0 16px 26px;font-size:.8rem">Off by default. When on, only technicians with an active trial or plan appear in client search. Suspended accounts are always hidden.</p>
+        <div class="field"><label class="lbl">Public site URL (used in email links)</label><input type="url" name="site_url" value="{{ cfg.site_url }}" placeholder="https://your-site.onrender.com"></div>
+        <button class="btn primary" type="submit">Save settings</button></form></div></div>
+    <div class="panel"><div class="panel-h"><h2>Change admin password</h2></div><div class="panel-b">
+      <form method="post" action="{{ url_for('admin.settings_password') }}" autocomplete="off">{{ csrf() }}
+        <div class="field"><label class="lbl">Current password</label><input type="password" name="current_password" required autocomplete="current-password"></div>
+        <div class="two"><div class="field"><label class="lbl">New password</label><input type="password" name="new_password" required autocomplete="new-password"></div>
+          <div class="field"><label class="lbl">Confirm</label><input type="password" name="confirm_password" required autocomplete="new-password"></div></div>
+        <p class="muted" style="font-size:.78rem;margin-bottom:12px">10+ characters with upper-case, lower-case, a number and a symbol.</p>
+        <button class="btn primary" type="submit">Change password</button></form></div></div>
+    <div class="panel"><div class="panel-h"><h2>Email test</h2></div><div class="panel-b">
+      <form method="post" action="{{ url_for('admin.settings_test_email') }}" style="display:flex;gap:8px">{{ csrf() }}<input type="email" name="to" placeholder="you@example.com" required style="flex:1"><button class="btn ghost" type="submit">{{ icon('send','ic-sm') }} Send test</button></form></div></div>
+  </div>
+  <div>
+    <div class="panel"><div class="panel-h"><h2>Security status</h2></div><div class="panel-b"><dl class="kv">
+      <dt>Admin password</dt><dd>{{ info.password_source }} {% if info.default_pw %}<span class="badge red">unsafe</span>{% else %}<span class="badge green">ok</span>{% endif %}</dd>
+      <dt>Session signing key</dt><dd>{% if info.secret_from_env %}<span class="badge green">SECRET_KEY environment variable</span>{% else %}<span class="badge amber">generated key file</span> <span class="muted">Set <code>SECRET_KEY</code> on your host for a permanent key.</span>{% endif %}</dd>
+      <dt>Admin session</dt><dd>Signs out after 60 minutes of inactivity</dd>
+      <dt>Login protection</dt><dd>5 wrong passwords / 15 min per IP, then locked out</dd>
+      <dt>Forms</dt><dd>CSRF token required on every admin action</dd>
+      <dt>Certificates</dt><dd>Private folder, visible only to you and the owner</dd></dl></div></div>
+    <div class="panel"><div class="panel-h"><h2>System</h2></div><div class="panel-b"><dl class="kv">
+      <dt>Email sending</dt><dd>{% if info.mail_ready %}<span class="badge green">Configured</span>{% else %}<span class="badge red">Not available</span>{% endif %}</dd>
+      <dt>Database size</dt><dd>{{ info.db_size_kb }} KB</dd><dt>Technicians</dt><dd>{{ info.technicians }}</dd>
+      <dt>Unlock records</dt><dd>{{ info.unlocks }}</dd><dt>Subscription payments</dt><dd>{{ info.sub_payments }}</dd><dt>Audit entries</dt><dd>{{ info.audit_entries }}</dd></dl>
+      <p class="muted" style="margin-top:12px;font-size:.78rem">On Render's free tier the database file is erased on every restart. Export your CSVs regularly.</p></div></div>
+  </div>
+</div>
+<div class="panel"><div class="panel-h"><h2>Audit log</h2><span class="sub">Latest 40 admin actions</span></div><div class="tbl-wrap"><table>
+  <thead><tr><th>When (CAT)</th><th>Action</th><th>Target</th><th>Detail</th><th>IP</th></tr></thead><tbody>
+  {% for a in audit_rows %}<tr><td class="nowrap">{{ a.created_at|cat_dt }}</td><td><span class="badge {{ 'red' if 'failed' in a.action or 'suspend' == a.action or 'void' in a.action else 'slate' }}">{{ a.action }}</span></td>
+    <td>{{ a.target_type or '' }}{% if a.target_id %} #{{ a.target_id }}{% endif %}</td><td class="muted">{{ a.detail }}</td><td class="mono muted">{{ a.ip or '' }}</td></tr>
+  {% else %}<tr><td colspan="5" class="empty">No admin actions recorded yet.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

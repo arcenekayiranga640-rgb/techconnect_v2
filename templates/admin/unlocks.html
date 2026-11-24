@@ -1,0 +1,43 @@
+{% extends 'admin/_layout.html' %}
+{% from 'admin/_macros.html' import stat, csrf, pager with context %}
+{% block title %}Unlocks{% endblock %}
+{% block heading %}Client Unlocks{% endblock %}
+{% block subheading %}Every 200 RWF contact unlock · each TNX code can be used once, ever{% endblock %}
+{% block actions %}<a class="btn ghost sm" href="{{ url_for('admin.export_csv', kind='unlock-ledger') }}">{{ icon('download','ic-sm') }} Export CSV</a>{% endblock %}
+{% block content %}
+<div class="grid g4">
+  {{ stat('Valid unlocks', m.unlocks, '200 RWF each', 'lock-open', 'amber') }}
+  {{ stat('Unlock revenue (RWF)', m.unlock_revenue|rwf, 'Voided payments excluded', 'wallet', 'blue') }}
+  {{ stat('Today / this month', today ~ ' / ' ~ month, 'Rwanda time', 'calendar', 'slate') }}
+  {{ stat('Voided payments', m.unlocks_voided, 'Codes stay locked', 'ban', 'red') }}
+</div>
+<div class="panel" style="margin-top:18px">
+  <form class="filters" method="get">
+    <div class="field grow"><label class="lbl">Search</label><input type="search" name="q" value="{{ args.get('q','') }}" placeholder="Phone, TNX code or technician"></div>
+    <div class="field"><label class="lbl">Status</label><select name="status">{% for v, l in [('all','All'),('active','Active now'),('valid','Valid'),('voided','Voided')] %}<option value="{{ v }}" {{ 'selected' if args.get('status','all') == v }}>{{ l }}</option>{% endfor %}</select></div>
+    <div class="field"><label class="lbl">From</label><input type="date" name="from" value="{{ args.get('from','') }}"></div>
+    <div class="field"><label class="lbl">To</label><input type="date" name="to" value="{{ args.get('to','') }}"></div>
+    <button class="btn primary" type="submit">{{ icon('filter','ic-sm') }} Filter</button><a class="btn ghost" href="{{ url_for('admin.unlocks') }}">Reset</a>
+  </form>
+  <div class="tbl-wrap"><table><thead><tr><th>Unlocked (CAT)</th><th>Client phone</th><th>TNX / MoMo reference</th><th>Technician unlocked</th><th class="right-al">RWF</th><th>Access</th><th></th></tr></thead><tbody>
+  {% for r in rows %}<tr class="{{ 'dim' if r.status == 'voided' }}"><td class="nowrap">{{ r.created_at|cat_dt }}</td>
+    <td><a href="{{ url_for('admin.client_detail', phone=r.client_phone) }}"><strong>{{ r.client_phone }}</strong></a></td><td class="mono">{{ r.tnx_code }}</td><td>{{ r.technician_name }}</td>
+    <td class="right-al"><strong>{{ r.amount|rwf }}</strong></td>
+    <td>{% if r.status == 'voided' %}<span class="badge red" title="{{ r.void_reason }}">Voided</span>{% elif r.live %}<span class="badge green">Active · until {{ r.expires_at|cat_dt }}</span>{% else %}<span class="badge slate">Expired</span>{% endif %}</td>
+    <td class="right-al">{% if r.status == 'voided' %}<form method="post" action="{{ url_for('admin.unlock_void', uid=r.id) }}" style="display:inline">{{ csrf() }}<input type="hidden" name="action" value="restore"><button class="btn ghost sm">Restore</button></form>
+      {% else %}<button class="btn danger sm" data-void data-id="{{ r.id }}" data-tnx="{{ r.tnx_code }}">Void</button>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="7" class="empty">No unlocks match these filters.</td></tr>{% endfor %}</tbody></table></div>
+  {{ pager(pg) }}
+</div>
+<dialog id="voidDlg" class="dlg"><form method="post" id="voidForm" action="">{{ csrf() }}<input type="hidden" name="action" value="void">
+  <div class="dlg-head"><h3>Void this payment</h3><button type="button" class="x" data-close>{{ icon('x','ic-md') }}</button></div>
+  <p class="dlg-sub" id="voidWho"></p>
+  <div class="banner warn" style="margin-bottom:14px">{{ icon('alert-triangle','ic-md') }}<span>The client's access ends immediately. The TNX code stays permanently locked and cannot be reused.</span></div>
+  <div class="field"><label class="lbl">Reason (kept in the audit log)</label><input type="text" name="reason" maxlength="200" required placeholder="e.g. Payment not found in MoMo statement"></div>
+  <div class="dlg-foot"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn danger" type="submit">Void payment</button></div></form></dialog>
+{% endblock %}
+{% block scripts %}<script>
+(function(){var tpl="{{ url_for('admin.unlock_void', uid=0) }}",d=document.getElementById('voidDlg'),f=document.getElementById('voidForm');
+ document.addEventListener('click',function(e){var b=e.target.closest('[data-void]');if(!b)return;
+  f.setAttribute('action',tpl.replace('/0/','/'+b.dataset.id+'/'));document.getElementById('voidWho').textContent='TNX '+b.dataset.tnx;d.showModal()})})();
+</script>{% endblock %}

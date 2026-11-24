@@ -1,0 +1,16 @@
+{% extends 'admin/_layout.html' %}
+{% block title %}Export Data{% endblock %}
+{% block heading %}Export Data{% endblock %}
+{% block subheading %}Download clean CSV reports · opens directly in Excel · times in Rwanda time (CAT){% endblock %}
+{% block content %}
+<div class="banner info">{{ icon('database','ic-lg') }}<div class="grow"><strong>Back up regularly.</strong> On Render's free tier the database is erased whenever the service restarts, so these CSV files may be your only copy. Password hashes are never exported.</div></div>
+<div class="grid g3">
+{% set meta = {'technicians':('users','User database'),'subscriptions':('calendar','Active subscriptions'),'subscription-payments':('wallet','Subscription payments'),'unlock-ledger':('lock-open','Client unlock ledger'),'transactions':('receipt','Financial ledger'),'retention-alerts':('bell','Reminder email log')} %}
+{% for key, desc, n in items %}
+  <div class="panel" style="margin:0"><div class="panel-b" style="display:flex;flex-direction:column;gap:12px;height:100%">
+    <div style="display:flex;gap:12px;align-items:center"><span class="ic-box">{{ icon(meta[key][0]) }}</span><div><strong>{{ meta[key][1] }}</strong><div class="muted" style="font-size:.78rem">{{ n }} row{{ '' if n == 1 else 's' }}</div></div></div>
+    <p class="muted" style="font-size:.84rem;flex:1">{{ desc }}</p>
+    <a class="btn primary" href="{{ url_for('admin.export_csv', kind=key) }}">{{ icon('download','ic-sm') }} Download CSV</a></div></div>
+{% endfor %}
+</div>
+{% endblock %}

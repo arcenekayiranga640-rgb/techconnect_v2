@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow"><title>Admin sign in · TechConnect</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI",system-ui,Arial,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
+ background:linear-gradient(135deg,#0F172A 0%,#1e3a5f 55%,#0d4db5 100%)}
+.card{width:100%;max-width:410px;background:rgba(255,255,255,.1);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:36px 34px;box-shadow:0 24px 48px rgba(0,0,0,.35);color:#fff}
+.mark{width:54px;height:54px;border-radius:14px;background:#2563eb;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+h1{text-align:center;font-size:1.35rem}.sub{text-align:center;color:rgba(255,255,255,.6);font-size:.84rem;margin:4px 0 24px}
+label{display:block;font-size:.8rem;font-weight:600;color:rgba(255,255,255,.85);margin-bottom:6px}
+input{width:100%;padding:12px 14px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:10px;color:#fff;font-size:.95rem}
+input:focus{outline:none;border-color:#7dd3fc;background:rgba(255,255,255,.18)}
+button{width:100%;margin-top:18px;background:#2563eb;color:#fff;border:none;border-radius:10px;padding:13px;font-size:.95rem;font-weight:700;cursor:pointer}button:hover{background:#1d4ed8}
+.err{background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.45);color:#fecaca;padding:11px 14px;border-radius:10px;font-size:.84rem;margin-bottom:16px}
+.note{text-align:center;color:rgba(255,255,255,.45);font-size:.74rem;margin-top:18px;line-height:1.5}
+</style></head><body>
+{% include '_icons.html' %}
+<div class="card">
+  <div class="mark">{{ icon('zap','ic-lg') }}</div>
+  <h1>TechConnect Admin</h1><p class="sub">Sign in to the management console</p>
+  {% with messages = get_flashed_messages(with_categories=true) %}{% for cat, msg in messages %}<div class="err">{{ msg }}</div>{% endfor %}{% endwith %}
+  <form method="post" action="{{ url_for('admin.login') }}" autocomplete="off">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="password">Password</label>
+    <input type="password" id="password" name="password" required autofocus autocomplete="current-password">
+    <button type="submit">Sign in</button>
+  </form>
+  <p class="note">Authorised administrators only. Failed attempts are logged and locked out after 5 tries.
+  Sessions end after 60 minutes of inactivity.</p>
+</div></body></html>

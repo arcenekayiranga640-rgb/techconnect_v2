@@ -171,7 +171,7 @@ body.pm-open{overflow:hidden;}
       {% else %}
         <div class="contact-locked">
           <div class="contact-locked-left"><span>{{ icon('phone', 'ic-t') }}••••••••••</span>{% if tech.whatsapp %}<span>{{ icon('message-circle', 'ic-t') }}••••••••••</span>{% endif %}{% if tech.email %}<span>{{ icon('mail', 'ic-t') }}••••@••••</span>{% endif %}</div>
-          <a href="{{ url_for('pay') }}" class="btn-pay">{{ icon('lock-open', 'ic-t') }}{{ t.unlock_contact }}</a>
+          <a href="{{ url_for('pay', tech=tech.id) }}" class="btn-pay">{{ icon('lock-open', 'ic-t') }}{{ t.unlock_contact }}</a>
         </div>
       {% endif %}
     </div>
@@ -233,7 +233,7 @@ function renderPreview(d){
   const more=el('a','',  'See all reviews / leave a review →');more.href=PORTFOLIO_URL+d.id;more.style.cssText='display:inline-block;margin-top:10px;font-size:0.84rem;font-weight:600;color:#2563eb;text-decoration:none;';pmBody.appendChild(more);
   const cta=el('div','pm-cta');
   cta.appendChild(el('span','',HAS_ACCESS?'Contact access is active — details are shown on the card.':'Like what you see? Unlock phone, WhatsApp and email for 24 hours.'));
-  if(!HAS_ACCESS){const b=el('a','btn-unlock');b.appendChild(ic('lock-open','ic-t'));b.appendChild(document.createTextNode('Unlock — 200 RWF'));b.href=PAY_URL;cta.appendChild(b);}
+  if(!HAS_ACCESS){const b=el('a','btn-unlock');b.appendChild(ic('lock-open','ic-t'));b.appendChild(document.createTextNode('Unlock — 200 RWF'));b.href=PAY_URL+'?tech='+encodeURIComponent(d.id);cta.appendChild(b);}
   pmBody.appendChild(cta);
 }
 async function openPreview(id,trigger){

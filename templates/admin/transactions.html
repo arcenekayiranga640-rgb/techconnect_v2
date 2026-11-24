@@ -1,0 +1,28 @@
+{% extends 'admin/_layout.html' %}
+{% from 'admin/_macros.html' import stat, pager with context %}
+{% block title %}Transactions{% endblock %}
+{% block heading %}Transactions{% endblock %}
+{% block subheading %}Combined financial ledger: client unlocks and technician subscriptions{% endblock %}
+{% block actions %}<a class="btn ghost sm" href="{{ url_for('admin.export_csv', kind='transactions') }}">{{ icon('download','ic-sm') }} Export CSV</a>{% endblock %}
+{% block content %}
+<div class="grid g3">
+  {{ stat('Total revenue (RWF)', m.total_revenue|rwf, 'All time', 'wallet', 'blue') }}
+  {{ stat('Matching this view (RWF)', total_amount|rwf, pg.total ~ ' transactions', 'filter', 'slate') }}
+  {{ stat('Voided', m.unlocks_voided, 'Not counted as revenue', 'ban', 'red') }}
+</div>
+<div class="panel" style="margin-top:18px">
+  <form class="filters" method="get">
+    <div class="field grow"><label class="lbl">Search</label><input type="search" name="q" value="{{ args.get('q','') }}" placeholder="Phone, name or reference"></div>
+    <div class="field"><label class="lbl">Type</label><select name="type">{% for v, l in [('all','All'),('unlock','Client unlocks'),('subscription','Subscriptions')] %}<option value="{{ v }}" {{ 'selected' if ttype == v }}>{{ l }}</option>{% endfor %}</select></div>
+    <div class="field"><label class="lbl">From</label><input type="date" name="from" value="{{ args.get('from','') }}"></div>
+    <div class="field"><label class="lbl">To</label><input type="date" name="to" value="{{ args.get('to','') }}"></div>
+    <button class="btn primary" type="submit">{{ icon('filter','ic-sm') }} Filter</button><a class="btn ghost" href="{{ url_for('admin.transactions') }}">Reset</a></form>
+  <div class="tbl-wrap"><table><thead><tr><th>Date (CAT)</th><th>Type</th><th>Party</th><th>Reference</th><th>Detail</th><th class="right-al">RWF</th><th>Status</th></tr></thead><tbody>
+  {% for r in rows %}<tr class="{{ 'dim' if r.status == 'voided' }}"><td class="nowrap">{{ r.created_at|cat_dt }}</td>
+    <td>{% if r.type == 'unlock' %}<span class="badge amber">Unlock</span>{% else %}<span class="badge blue">Subscription</span>{% endif %}</td>
+    <td><strong>{{ r.party }}</strong></td><td class="mono">{{ r.reference or '—' }}</td><td>{{ r.detail }}</td><td class="right-al"><strong>{{ r.amount|rwf }}</strong></td>
+    <td>{% if r.status == 'voided' %}<span class="badge red">Voided</span>{% elif r.type == 'subscription' and r.amount == 0 %}<span class="badge slate">Complimentary</span>{% else %}<span class="badge green">Recorded</span>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="7" class="empty">No transactions match.</td></tr>{% endfor %}</tbody></table></div>
+  {{ pager(pg) }}
+</div>
+{% endblock %}

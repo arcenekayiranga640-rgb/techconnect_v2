@@ -34,7 +34,7 @@ Run it with:
 Then open http://127.0.0.1:5000 in your browser.
 """
 
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory, abort
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import sqlite3
@@ -45,6 +45,9 @@ from datetime import datetime, timedelta
 import json
 import uuid
 import re
+import calendar
+import shutil
+import time as _time
 
 # OCR support: reads text out of uploaded certificate images/PDFs so we can
 # automatically check the document looks like the right type (degree vs
@@ -74,6 +77,8 @@ try:
 except ImportError:
     PORTAL_AVAILABLE = False
 
+import admin_portal   # admin console (blueprint) - see admin_portal.py
+
 app = Flask(__name__)
 
 # ── Flask-Mail (Password Reset) ───────────────────────────────────────────────
@@ -82,9 +87,9 @@ try:
     app.config["MAIL_SERVER"]          = "smtp.gmail.com"
     app.config["MAIL_PORT"]            = 587
     app.config["MAIL_USE_TLS"]         = True
-    app.config["MAIL_USERNAME"]        = "techconnectsupport13@gmail.com"
-    app.config["MAIL_PASSWORD"]        = "jmlyijvufeehlatj"
-    app.config["MAIL_DEFAULT_SENDER"]  = ("TechConnect Support", "techconnectsupport13@gmail.com")
+    app.config["MAIL_USERNAME"]        = os.environ.get("MAIL_USERNAME", "techconnectsupport13@gmail.com")
+    app.config["MAIL_PASSWORD"]        = os.environ.get("MAIL_PASSWORD", "jmlyijvufeehlatj")
+    app.config["MAIL_DEFAULT_SENDER"]  = ("TechConnect Support", app.config["MAIL_USERNAME"])
     mail = Mail(app)
     MAIL_AVAILABLE = True
 except ImportError:
@@ -93,16 +98,99 @@ except ImportError:
     print("[MAIL] flask-mail not installed — email sending disabled. Run: pip install flask-mail")
 # ─────────────────────────────────────────────────────────────────────────────
 
-app.secret_key = "dev-secret-key-change-later"  # needed for sessions + flash messages
+def _load_secret_key():
+    """Session-signing key.  Order: SECRET_KEY env var -> a key file created once and reused
+    (so all Gunicorn workers and restarts agree) -> random per-process as a last resort.
+    Never hard-code this: whoever knows it can forge a session cookie, including an admin one."""
+    env = os.environ.get("SECRET_KEY")
+    if env:
+        return env, "environment"
+    here = os.path.dirname(os.path.abspath(__file__))
+    for folder in (os.path.expanduser("~"), here):
+        path = os.path.join(folder, ".techconnect_secret_key")
+        try:
+            try:
+                fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                with os.fdopen(fd, "w") as fh:
+                    fh.write(secrets.token_hex(32))
+            except FileExistsError:
+                pass                                   # another worker created it first
+            for _ in range(20):                        # ...wait until it has been written
+                with open(path) as fh:
+                    key = fh.read().strip()
+                if len(key) >= 32:
+                    return key, "file"
+                _time.sleep(0.05)
+        except OSError:
+            continue
+    return secrets.token_hex(32), "random (per process)"
+
+
+app.secret_key, SECRET_KEY_SOURCE = _load_secret_key()
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=bool(os.environ.get("RENDER")),   # HTTPS-only cookie on Render
+)
+if os.environ.get("RENDER"):
+    # Render terminates TLS in front of us: trust exactly one proxy hop for client IP / scheme.
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+
+def send_email_safe(to, subject, html, timeout=15):
+    """Send one e-mail without ever blocking a web worker for long.  -> (ok, error_message)"""
+    if not (MAIL_AVAILABLE and mail):
+        return False, "Email is not configured (flask-mail is not installed)."
+    result = {"ok": False, "err": None}
+
+    def _send():
+        try:
+            with app.app_context():
+                mail.send(MailMessage(subject=subject, recipients=[to], html=html))
+            result["ok"] = True
+        except Exception as exc:
+            result["err"] = str(exc)[:300]
+
+    th = threading.Thread(target=_send, daemon=True)
+    th.start()
+    th.join(timeout)
+    if th.is_alive():
+        return False, f"The mail server did not respond within {timeout}s."
+    return result["ok"], result["err"]
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "techconnect.db")
 LOCATIONS_PATH = os.path.join(BASE_DIR, "rwanda_locations.json")
 
 UPLOAD_PHOTO_DIR = os.path.join(BASE_DIR, "static", "uploads", "photos")
-UPLOAD_CERT_DIR = os.path.join(BASE_DIR, "static", "uploads", "certificates")
+UPLOAD_CERT_DIR = os.path.join(BASE_DIR, "private_uploads", "certificates")      # NOT under /static
+_LEGACY_CERT_DIR = os.path.join(BASE_DIR, "static", "uploads", "certificates")
 os.makedirs(UPLOAD_PHOTO_DIR, exist_ok=True)
 os.makedirs(UPLOAD_CERT_DIR, exist_ok=True)
+
+
+def _migrate_legacy_certificates():
+    """One-time move of certificates that were saved under /static (publicly downloadable) to the private folder."""
+    if not os.path.isdir(_LEGACY_CERT_DIR):
+        return
+    for name in os.listdir(_LEGACY_CERT_DIR):
+        src, dst = os.path.join(_LEGACY_CERT_DIR, name), os.path.join(UPLOAD_CERT_DIR, name)
+        if not os.path.isfile(src) or name.startswith("."):
+            continue
+        if os.path.exists(dst):            # never leave a public copy behind: keep both, under a new name
+            stem, ext = os.path.splitext(name)
+            n = 1
+            while os.path.exists(dst):
+                dst = os.path.join(UPLOAD_CERT_DIR, f"{stem}.legacy{n}{ext}")
+                n += 1
+        try:
+            shutil.move(src, dst)
+        except OSError as exc:
+            print(f"[CERT MIGRATION] could not move {name}: {exc}", flush=True)
+
+
+_migrate_legacy_certificates()
 
 ALLOWED_PHOTO_EXT = {"png", "jpg", "jpeg", "webp"}
 ALLOWED_CERT_EXT = {"pdf", "png", "jpg", "jpeg"}
@@ -674,6 +762,7 @@ def init_db():
             ip TEXT
         )
     """)
+    admin_portal.ensure_schema(conn)      # subscriptions, unlock ledger, retention alerts, audit log
     conn.commit()
     conn.close()
 
@@ -702,6 +791,9 @@ def current_technician():
     conn = get_db_connection()
     tech = conn.execute("SELECT * FROM technicians WHERE id = ?", (tech_id,)).fetchone()
     conn.close()
+    if tech is not None and tech["is_suspended"]:
+        session.pop("technician_id", None)          # suspended while logged in -> signed out
+        return None
     return tech
 
 
@@ -961,13 +1053,14 @@ def register_step4():
                  phone, whatsapp, email, password_hash,
                  province, district, sector, bio,
                  photo_filename, certificate_filename, certificate_number,
-                 verification_status)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                 verification_status, subscription_plan, subscription_expires)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (full_name, qualification_type, degree_level, degree, skill_category,
              phone, whatsapp, email, password_hash,
              province, district, sector, bio,
              photo_filename, certificate_filename, certificate_number,
-             "Verified" if session.get("reg_verified") else "Pending Review"),
+             "Verified" if session.get("reg_verified") else "Pending Review",
+             "trial", admin_portal.to_db(admin_portal.utcnow() + timedelta(days=admin_portal.TRIAL_DAYS))),
         )
         conn.commit()
         new_id = cursor.lastrowid
@@ -1001,6 +1094,9 @@ def login():
         conn.close()
 
         if tech and check_password_hash(tech["password_hash"], password):
+            if tech["is_suspended"]:
+                flash("This account has been suspended. Please contact TechConnect support.", "error")
+                return render_template("login.html")
             session["technician_id"] = tech["id"]
             flash(f"Welcome back, {tech['full_name']}!", "success")
             return redirect(url_for("my_profile"))
@@ -1018,6 +1114,24 @@ def logout():
 
 
 # ---------- My profile: view / edit / delete ----------
+
+@app.route("/certificate/<path:filename>")
+def certificate_file(filename):
+    """Certificates are private: only the owning technician or the signed-in admin can open one.
+    Everyone else gets a plain 404 (so the file's existence is not revealed)."""
+    if secure_filename(filename) != filename:
+        abort(404)
+    allowed = admin_portal.is_admin()
+    if not allowed:
+        tech = current_technician()
+        allowed = bool(tech and tech["certificate_filename"] == filename)
+    if not allowed:
+        abort(404)
+    resp = send_from_directory(UPLOAD_CERT_DIR, filename)
+    resp.headers["Cache-Control"] = "private, no-store"
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    return resp
+
 
 @app.route("/my-profile")
 def my_profile():
@@ -1227,24 +1341,35 @@ ACCESS_DURATION_HOURS = 24
 ACCESS_PRICE_RWF = 200
 
 
+def _clear_client_access():
+    for k in ("client_access_expiry", "client_phone", "client_code", "client_unlock_id"):
+        session.pop(k, None)
+
+
 def client_has_access():
-    """Check if the current browser session has active paid access."""
-    import time
+    """True while this browser holds a valid paid unlock.  The ledger is checked on every call,
+    so an admin who voids a payment cuts the client's access immediately."""
     expiry = session.get("client_access_expiry")
-    if expiry and time.time() < expiry:
-        return True
-    # Clean up expired session
-    session.pop("client_access_expiry", None)
-    session.pop("client_phone", None)
-    session.pop("client_code", None)
-    return False
+    if not expiry or _time.time() >= expiry:
+        _clear_client_access()
+        return False
+    unlock_id = session.get("client_unlock_id")
+    if unlock_id is None:
+        return True            # session issued before the ledger existed: honoured until it expires (max 24h)
+    conn = get_db_connection()
+    try:
+        valid = admin_portal.unlock_is_valid(conn, unlock_id)
+    except sqlite3.Error:
+        valid = True           # never lock out a paying client because of a transient database error
+    finally:
+        conn.close()
+    return valid               # voided -> denied now; if the admin restores it, access simply resumes
 
 
 def access_expires_in():
     """Return seconds remaining on current access, or 0."""
-    import time
     expiry = session.get("client_access_expiry", 0)
-    return max(0, int(expiry - time.time()))
+    return max(0, int(expiry - _time.time()))
 
 
 @app.route("/pay", methods=["GET", "POST"])
@@ -1257,47 +1382,50 @@ def pay():
         flash("You already have active access. Contacts are visible.", "success")
         return redirect(url_for("list_technicians"))
 
+    tech_id = request.values.get("tech", type=int)          # which technician's card the client clicked "unlock" on
+
+    def _pay_page(status=200):
+        return render_template("pay.html", payment_number=PAYMENT_NUMBER, price=ACCESS_PRICE_RWF,
+                               hours=ACCESS_DURATION_HOURS, form_data=request.form, tech_id=tech_id), status
+
     if request.method == "POST":
-        phone = request.form.get("phone", "").strip()
-        code = request.form.get("code", "").strip().upper()
+        phone_n = admin_portal.normalize_phone(request.form.get("phone", ""))
+        tnx_n = admin_portal.normalize_tnx(request.form.get("code", ""))
 
         errors = []
-        if not phone or len(phone) < 9:
-            errors.append("Please enter your phone number (the one you paid from).")
-        if not code or len(code) < 4:
-            errors.append("Please enter the confirmation code from your payment SMS.")
-
+        if not phone_n:
+            errors.append("Please enter the Rwandan mobile number you paid from (for example 0788123456).")
+        if not 6 <= len(tnx_n) <= 32:
+            errors.append("Please enter the transaction code from your payment SMS (6 to 32 letters and numbers).")
         if errors:
             for e in errors:
                 flash(e, "error")
-            return render_template("pay.html",
-                payment_number=PAYMENT_NUMBER,
-                price=ACCESS_PRICE_RWF,
-                hours=ACCESS_DURATION_HOURS,
-                form_data=request.form)
+            return _pay_page()
 
-        # Save the payment claim to DB for your records, then grant access
+        # Every code can be used exactly once, ever.  The UNIQUE index in the ledger makes this
+        # race-proof: two simultaneous requests with the same code can't both succeed.
         conn = get_db_connection()
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS payment_claims (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                phone TEXT NOT NULL,
-                code TEXT NOT NULL,
-                claimed_at TEXT DEFAULT (datetime('now')),
-                ip TEXT
-            )
-        """)
-        conn.execute(
-            "INSERT INTO payment_claims (phone, code, ip) VALUES (?, ?, ?)",
-            (phone, code, request.remote_addr)
-        )
-        conn.commit()
-        conn.close()
+        try:
+            result = admin_portal.claim_unlock(conn, phone_n, tnx_n, technician_id=tech_id, ip=request.remote_addr)
+        except sqlite3.OperationalError:
+            flash("We are a little busy right now. Please try again in a moment.", "error")
+            return _pay_page()
+        finally:
+            conn.close()
 
-        # Grant 24-hour access in the browser session
-        session["client_access_expiry"] = time.time() + (ACCESS_DURATION_HOURS * 3600)
-        session["client_phone"] = phone
-        session["client_code"] = code
+        if not result["ok"]:
+            if result["reason"] == "reused":
+                flash("This transaction code has already been used. Each payment code unlocks access once, "
+                      "so please pay again to get a new code.", "error")
+            else:
+                flash("We could not read those details. Please check them and try again.", "error")
+            return _pay_page()
+
+        # Grant access in this browser for exactly the period recorded in the ledger
+        session["client_access_expiry"] = calendar.timegm(result["expires_at"].utctimetuple())
+        session["client_phone"] = result["phone"]
+        session["client_code"] = result["tnx"]
+        session["client_unlock_id"] = result["id"]
         t = get_t()
         flash(t["access_granted"].format(hours=ACCESS_DURATION_HOURS), "success")
         return redirect(url_for("list_technicians"))
@@ -1306,10 +1434,21 @@ def pay():
         payment_number=PAYMENT_NUMBER,
         price=ACCESS_PRICE_RWF,
         hours=ACCESS_DURATION_HOURS,
-        form_data={})
+        form_data={}, tech_id=tech_id)
 
 
 # ---------- Public technician listing ----------
+
+def tech_is_public(conn, tech):
+    """Suspended accounts are never public.  If the admin switched on 'enforce expiry',
+    technicians without an active plan are hidden too."""
+    if tech is None or tech["is_suspended"]:
+        return False
+    if admin_portal.get_setting(conn, "enforce_expiry", "0") == "1":
+        exp = admin_portal.from_db(tech["subscription_expires"])
+        return bool(exp and exp > admin_portal.utcnow())
+    return True
+
 
 @app.route("/technicians")
 def list_technicians():
@@ -1340,6 +1479,14 @@ def list_technicians():
         conditions.append("COALESCE(is_available, 1) = 1")
     if search_verified:
         conditions.append("verification_status = 'Verified'")
+
+    _c = get_db_connection()
+    try:
+        conditions.append("COALESCE(is_suspended, 0) = 0")
+        if admin_portal.get_setting(_c, "enforce_expiry", "0") == "1":
+            conditions.append("subscription_expires IS NOT NULL AND subscription_expires > datetime('now')")
+    finally:
+        _c.close()
 
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
@@ -1405,128 +1552,7 @@ def list_technicians():
     )
 
 
-# ══════════════════════════════════════════════════════
-# ADMIN DASHBOARD — API ROUTES
-# ══════════════════════════════════════════════════════
-
-ADMIN_PASSWORD = "TechConnect@Admin2026"  # Change this to a strong password
-
-
-def admin_required(f):
-    """Simple admin auth decorator — checks session for admin login."""
-    from functools import wraps
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not session.get("is_admin"):
-            return jsonify({"error": "Unauthorized"}), 401
-        return f(*args, **kwargs)
-    return decorated
-
-
-@app.route("/admin/login", methods=["GET", "POST"])
-def admin_login():
-    if request.method == "POST":
-        pw = request.form.get("password", "")
-        if pw == ADMIN_PASSWORD:
-            session["is_admin"] = True
-            return redirect(url_for("admin_dashboard"))
-        flash("Wrong password.", "error")
-    return render_template("admin_login.html")
-
-
-@app.route("/admin/logout")
-def admin_logout():
-    session.pop("is_admin", None)
-    return redirect(url_for("admin_login"))
-
-
-@app.route("/admin")
-def admin_dashboard():
-    if not session.get("is_admin"):
-        return redirect(url_for("admin_login"))
-    return render_template("admin_dashboard.html")
-
-
-@app.route("/admin/api/metrics")
-@admin_required
-def admin_metrics():
-    """Top row cards — real numbers from DB."""
-    import time
-    conn = get_db_connection()
-
-    # Total technicians with active subscription
-    active_techs = conn.execute(
-        "SELECT COUNT(*) AS c FROM technicians"
-    ).fetchone()["c"]
-
-    # Total payment claims (client unlocks)
-    total_unlocks = conn.execute(
-        "SELECT COUNT(*) AS c FROM payment_claims"
-    ).fetchone()["c"]
-
-    # Total revenue: unlocks (200 RWF each) + subscriptions (from payment_claims marked as tech)
-    unlock_revenue = total_unlocks * 200
-
-    conn.close()
-
-    return jsonify({
-        "total_revenue": unlock_revenue,
-        "active_technicians": active_techs,
-        "total_unlocks": total_unlocks,
-        "churn_rate": 6.2,  # placeholder — update when subscription expiry tracking is added
-    })
-
-
-@app.route("/admin/api/transactions")
-@admin_required
-def admin_transactions():
-    """Live Transaction Ledger — real payment claims."""
-    conn = get_db_connection()
-    rows = conn.execute(
-        "SELECT * FROM payment_claims ORDER BY claimed_at DESC LIMIT 20"
-    ).fetchall()
-    conn.close()
-    return jsonify([dict(r) for r in rows])
-
-
-@app.route("/admin/api/technicians")
-@admin_required
-def admin_technicians():
-    """All technicians for retention desk and top performers."""
-    conn = get_db_connection()
-    rows = conn.execute(
-        "SELECT id, full_name, skill_category, phone, district, province, created_at FROM technicians ORDER BY created_at DESC"
-    ).fetchall()
-    conn.close()
-    return jsonify([dict(r) for r in rows])
-
-
-@app.route("/admin/api/trade-distribution")
-@admin_required
-def admin_trade_distribution():
-    """Technician count per skill category for pie chart."""
-    conn = get_db_connection()
-    rows = conn.execute(
-        "SELECT skill_category, COUNT(*) AS count FROM technicians GROUP BY skill_category ORDER BY count DESC"
-    ).fetchall()
-    conn.close()
-    return jsonify([dict(r) for r in rows])
-
-
-@app.route("/admin/api/monthly-registrations")
-@admin_required
-def admin_monthly_registrations():
-    """Monthly technician registrations for the bar chart (last 12 months)."""
-    conn = get_db_connection()
-    rows = conn.execute("""
-        SELECT strftime('%Y-%m', created_at) AS month, COUNT(*) AS count
-        FROM technicians
-        WHERE created_at >= date('now', '-12 months')
-        GROUP BY month
-        ORDER BY month ASC
-    """).fetchall()
-    conn.close()
-    return jsonify([dict(r) for r in rows])
+# (The admin console lives in admin_portal.py and is mounted at /admin below.)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1736,7 +1762,7 @@ def technician_preview(tech_id):
     conn = get_db_connection()
     try:
         tech = conn.execute("SELECT * FROM technicians WHERE id = ?", (tech_id,)).fetchone()
-        if not tech:
+        if not tech_is_public(conn, tech):
             return jsonify({"error": "not found"}), 404
         try:
             images = conn.execute(
@@ -1871,8 +1897,9 @@ def portfolio_view(tech_id):
         "SELECT * FROM portfolio_images WHERE technician_id = ? ORDER BY created_at DESC",
         (tech_id,)
     ).fetchall()
+    visible = tech_is_public(conn, tech)
     conn.close()
-    if not tech:
+    if not visible:
         flash("Technician not found.", "error")
         return redirect(url_for("list_technicians"))
     return render_template("portfolio_view.html",
@@ -1899,8 +1926,8 @@ def submit_review(tech_id):
 
     conn = get_db_connection()
     # Check technician exists
-    tech = conn.execute("SELECT id FROM technicians WHERE id = ?", (tech_id,)).fetchone()
-    if not tech:
+    tech = conn.execute("SELECT id, is_suspended, subscription_expires FROM technicians WHERE id = ?", (tech_id,)).fetchone()
+    if not tech_is_public(conn, tech):
         conn.close()
         flash("Technician not found.", "error")
         return redirect(url_for("list_technicians"))
@@ -1977,6 +2004,11 @@ try:
     get_db_connection().close()
 except Exception as _e:
     print(f"[STARTUP] schema init failed: {_e}", flush=True)
+
+
+# Admin console + background subscription-reminder scheduler
+admin_portal.init_app(app, db=get_db_connection, mailer=send_email_safe,
+                      mail_ready=lambda: bool(MAIL_AVAILABLE and mail))
 
 
 if __name__ == '__main__':

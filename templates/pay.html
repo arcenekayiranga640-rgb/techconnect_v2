@@ -14,6 +14,7 @@
     <div class="pay-form-section">
         <p class="pay-title">{{ t.pay_step2 }}</p>
         <form method="POST" action="{{ url_for('pay') }}">
+            <input type="hidden" name="tech" value="{{ tech_id or '' }}">
             <label for="phone">{{ t.phone_label }}</label>
             <input type="tel" id="phone" name="phone" placeholder="{{ t.phone_placeholder }}" value="{{ form_data.phone or '' }}" required>
             <label for="code">{{ t.code_label }}</label>

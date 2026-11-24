@@ -1,0 +1,60 @@
+{# Shared dialogs: "Manage subscription" and "Suspend account".  Open with data-sub / data-suspend buttons. #}
+{% from 'admin/_macros.html' import csrf with context %}
+<dialog id="subDlg" class="dlg">
+  <form method="post" id="subForm" action="">
+    {{ csrf() }}
+    <div class="dlg-head"><h3>Manage subscription</h3><button type="button" class="x" data-close aria-label="Close">{{ icon('x','ic-md') }}</button></div>
+    <p class="dlg-sub" id="subWho"></p>
+    <div class="seg">
+      <label><input type="radio" name="action" value="grant" checked> Grant plan</label>
+      <label><input type="radio" name="action" value="extend"> Extend</label>
+      <label><input type="radio" name="action" value="revoke"> Revoke</label>
+    </div>
+    <div data-for="grant"><div class="field"><label class="lbl">Plan</label>
+      <select name="plan">{% for k, p in PLANS.items() %}<option value="{{ k }}">{{ p.label }} — {{ p.price|rwf }} RWF ({{ p.days }} days)</option>{% endfor %}</select></div></div>
+    <div data-for="extend"><div class="two">
+      <div class="field"><label class="lbl">Add days</label><input type="number" name="days" min="1" max="365" value="30"></div>
+      <div class="field"><label class="lbl">Amount received (RWF, optional)</label><input type="number" name="amount" min="0" value="0"></div></div></div>
+    <div data-for="grant extend">
+      <div class="two">
+        <div class="field"><label class="lbl">Payment method</label><select name="method">{% for m in PAYMENT_METHODS %}<option value="{{ m }}">{{ m|capitalize }}</option>{% endfor %}</select></div>
+        <div class="field"><label class="lbl">Reference / receipt no.</label><input type="text" name="reference" maxlength="60" placeholder="MoMo TNX, receipt…"></div></div>
+      <div class="field"><label class="lbl">Note</label><input type="text" name="note" maxlength="200" placeholder="e.g. Paid cash at office"></div>
+      <label class="inline-check"><input type="checkbox" name="record_payment" value="1" checked> Record this as revenue (untick for free / complimentary)</label>
+    </div>
+    <div data-for="revoke" class="banner warn" style="margin:0">{{ icon('alert-triangle','ic-md') }}<span>Ends this technician's plan immediately. Past revenue is kept in the ledger.</span></div>
+    <div class="dlg-foot"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn primary" type="submit">Apply</button></div>
+  </form>
+</dialog>
+
+<dialog id="susDlg" class="dlg">
+  <form method="post" id="susForm" action="">
+    {{ csrf() }}<input type="hidden" name="action" value="suspend">
+    <div class="dlg-head"><h3>Suspend account</h3><button type="button" class="x" data-close aria-label="Close">{{ icon('x','ic-md') }}</button></div>
+    <p class="dlg-sub" id="susWho"></p>
+    <div class="banner danger" style="margin-bottom:14px">{{ icon('ban','ic-md') }}<span>The profile is hidden from search, the technician is signed out and cannot log in.</span></div>
+    <div class="field"><label class="lbl">Reason (kept in the audit log)</label><input type="text" name="reason" maxlength="200" required placeholder="e.g. Forged certificate"></div>
+    <div class="dlg-foot"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn danger" type="submit">Suspend account</button></div>
+  </form>
+</dialog>
+
+<script>
+(function(){
+  var subTpl="{{ url_for('admin.tech_subscription', tid=0) }}", susTpl="{{ url_for('admin.tech_suspend', tid=0) }}";
+  var sub=document.getElementById('subDlg'), subForm=document.getElementById('subForm'),
+      sus=document.getElementById('susDlg'), susForm=document.getElementById('susForm');
+  function sync(){var a=subForm.querySelector('input[name=action]:checked').value;
+    subForm.querySelectorAll('[data-for]').forEach(function(d){d.classList.toggle('hide', d.dataset.for.split(' ').indexOf(a)<0)});}
+  subForm.querySelectorAll('input[name=action]').forEach(function(r){r.addEventListener('change',sync)});
+  document.addEventListener('click',function(e){
+    var b=e.target.closest('[data-sub]');
+    if(b){subForm.setAttribute('action',subTpl.replace('/0/','/'+b.dataset.id+'/'));
+      document.getElementById('subWho').textContent=b.dataset.name+' · current plan: '+b.dataset.plan;
+      var pref=b.dataset.pref||'grant'; subForm.querySelector('input[name=action][value='+pref+']').checked=true; sync(); sub.showModal();}
+    var s=e.target.closest('[data-suspend]');
+    if(s){susForm.setAttribute('action',susTpl.replace('/0/','/'+s.dataset.id+'/'));
+      document.getElementById('susWho').textContent=s.dataset.name; sus.showModal();}
+  });
+  sync();
+})();
+</script>

@@ -1,0 +1,36 @@
+{% extends 'admin/_layout.html' %}
+{% from 'admin/_macros.html' import csrf, plan_badge, verify_badge, days_cell, pager with context %}
+{% block title %}Technicians{% endblock %}
+{% block heading %}Technicians{% endblock %}
+{% block subheading %}Manage subscriptions, verification badges and account suspensions{% endblock %}
+{% block actions %}<a class="btn ghost sm" href="{{ url_for('admin.export_csv', kind='technicians') }}">{{ icon('download','ic-sm') }} Export CSV</a>{% endblock %}
+{% block content %}
+<div class="tabs">
+  {% for key, label, n in [('all','All',counts.total),('active','Active plan',counts.active),('trial','Free trial',counts.trial),('expired','Expired',counts.expired),('unverified','Unverified',counts.unverified),('suspended','Suspended',counts.suspended)] %}
+    <a class="tab {{ 'on' if status == key }}" href="?{{ qs(status=key, page=None) }}">{{ label }}<em>{{ n }}</em></a>{% endfor %}
+</div>
+<div class="panel">
+  <form class="filters" method="get"><input type="hidden" name="status" value="{{ status }}">
+    <div class="field grow"><label class="lbl">Search</label><input type="search" name="q" value="{{ args.get('q','') }}" placeholder="Name, phone, WhatsApp or email"></div>
+    <button class="btn primary" type="submit">{{ icon('search','ic-sm') }} Search</button><a class="btn ghost" href="{{ url_for('admin.technicians') }}">Reset</a></form>
+  <div class="tbl-wrap"><table><thead><tr><th>Technician</th><th>Contact</th><th>Subscription</th><th>Verification</th><th>Account</th><th>Actions</th></tr></thead><tbody>
+  {% for t in rows %}<tr class="{{ 'danger' if t.is_suspended }}">
+    <td><strong>{{ t.full_name }}</strong><div class="muted">{{ t.skill_category }} · {{ t.district }}, {{ t.province }}</div>
+      {% if t.certificate_filename %}<a class="muted" href="{{ url_for('certificate_file', filename=t.certificate_filename) }}" target="_blank" rel="noopener">{{ icon('file-text','ic-sm') }} Certificate</a>{% endif %}</td>
+    <td>{{ t.phone }}<div class="muted">{{ t.email }}</div></td>
+    <td>{{ plan_badge(t) }}{% if t.subscription_expires %}<div class="muted" style="margin-top:4px">until {{ t.subscription_expires|cat_date }} {{ days_cell(t) }}</div>{% endif %}</td>
+    <td>{{ verify_badge(t.verification_status) }}</td>
+    <td>{% if t.is_suspended %}<span class="badge red">Suspended</span><div class="muted" title="{{ t.suspended_reason }}">{{ (t.suspended_reason or '')[:40] }}</div>{% else %}<span class="badge green">Active</span>{% endif %}</td>
+    <td><div class="actions">
+      <button class="btn ghost sm" data-sub data-id="{{ t.id }}" data-name="{{ t.full_name }}" data-plan="{{ t.plan_label }}">{{ icon('rotate-cw','ic-sm') }} Subscription</button>
+      <form method="post" action="{{ url_for('admin.tech_verify', tid=t.id) }}">{{ csrf() }}
+        {% if t.verified %}<input type="hidden" name="action" value="unverify"><button class="btn ghost sm" title="Remove the verified badge">{{ icon('shield-check','ic-sm') }} Un-verify</button>
+        {% else %}<input type="hidden" name="action" value="verify"><button class="btn success sm" title="Grant the verified badge">{{ icon('shield-check','ic-sm') }} Verify</button>{% endif %}</form>
+      {% if t.is_suspended %}<form method="post" action="{{ url_for('admin.tech_suspend', tid=t.id) }}">{{ csrf() }}<input type="hidden" name="action" value="unsuspend"><button class="btn success sm">{{ icon('user-check','ic-sm') }} Reinstate</button></form>
+      {% else %}<button class="btn danger sm" data-suspend data-id="{{ t.id }}" data-name="{{ t.full_name }}">{{ icon('ban','ic-sm') }} Suspend</button>{% endif %}
+    </div></td></tr>
+  {% else %}<tr><td colspan="6" class="empty">No technicians match this view.</td></tr>{% endfor %}</tbody></table></div>
+  {{ pager(pg) }}
+</div>
+{% include 'admin/_tech_modals.html' %}
+{% endblock %}

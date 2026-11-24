@@ -1,0 +1,39 @@
+{% extends 'admin/_layout.html' %}
+{% from 'admin/_macros.html' import stat with context %}
+{% block title %}Revenue{% endblock %}
+{% block heading %}Revenue{% endblock %}
+{% block subheading %}Income by source · client unlocks (200 RWF) and technician subscriptions{% endblock %}
+{% block actions %}<a class="btn ghost sm" href="{{ url_for('admin.export_csv', kind='transactions') }}">{{ icon('download','ic-sm') }} Export ledger</a>{% endblock %}
+{% block content %}
+<div class="grid g4">
+  {{ stat('Total Revenue (RWF)', m.total_revenue|rwf, 'All time', 'wallet', 'blue') }}
+  {{ stat('Client Unlocks', m.unlock_revenue|rwf, m.unlocks ~ ' × 200 RWF', 'lock-open', 'amber') }}
+  {{ stat('1-Month Plans', m.rev_1m|rwf, m.sales_1m ~ ' sold × 3,000 RWF', 'user-check', 'green') }}
+  {{ stat('3-Month Plans', m.rev_3m|rwf, m.sales_3m ~ ' sold × 7,000 RWF', 'shield-check', 'green') }}
+</div>
+<div class="grid g3" style="margin-top:16px">
+  {{ stat('This month', cur|rwf ~ ' RWF', (('▲ ' if growth >= 0 else '▼ ') ~ (growth|abs) ~ '% vs last month') if growth is not none else 'No previous month to compare', 'activity', 'blue') }}
+  {{ stat('Last month', prev|rwf ~ ' RWF', '', 'calendar', 'slate') }}
+  {{ stat('Other subscription income', m.rev_other|rwf ~ ' RWF', 'Extensions recorded on trial plans', 'receipt', 'slate') }}
+</div>
+<div class="panel" style="margin-top:18px"><div class="panel-h"><h2>Revenue by month and source</h2><span class="sub">Stacked · RWF</span></div>
+  <div class="chart-box" style="height:300px"><canvas id="cStack"></canvas></div></div>
+<div class="panel"><div class="panel-h"><h2>Monthly breakdown</h2></div><div class="tbl-wrap"><table>
+  <thead><tr><th>Month</th><th class="right-al">Unlocks</th><th class="right-al">Unlock RWF</th><th class="right-al">1-Month sold</th><th class="right-al">1-Month RWF</th><th class="right-al">3-Month sold</th><th class="right-al">3-Month RWF</th><th class="right-al">Total RWF</th></tr></thead><tbody>
+  {% for i in rows %}<tr><td><strong>{{ series.labels[i] }}</strong></td><td class="right-al">{{ series.unlock_count[i] }}</td><td class="right-al">{{ series.unlock_rev[i]|rwf }}</td>
+    <td class="right-al">{{ series.sales_1m[i] }}</td><td class="right-al">{{ series.rev_1m[i]|rwf }}</td><td class="right-al">{{ series.sales_3m[i] }}</td><td class="right-al">{{ series.rev_3m[i]|rwf }}</td>
+    <td class="right-al"><strong>{{ series.total[i]|rwf }}</strong></td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+(function(){var S={{ series|tojson }},MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+ var labels=S.labels.map(function(m){var p=m.split('-');return MN[+p[1]-1]+' '+p[0].slice(2)});
+ if(typeof Chart==='undefined'){document.querySelector('.chart-box').innerHTML='<p class="muted" style="padding:30px;text-align:center">Charts need an internet connection to load Chart.js.</p>';return}
+ Chart.defaults.font.family='"Segoe UI",system-ui,sans-serif';Chart.defaults.font.size=11;Chart.defaults.color='#94a3b8';
+ new Chart(document.getElementById('cStack'),{type:'bar',data:{labels:labels,datasets:[
+  {label:'Client unlocks',data:S.unlock_rev,backgroundColor:'#f59e0b'},{label:'1-Month plans',data:S.rev_1m,backgroundColor:'#2563eb'},
+  {label:'3-Month plans',data:S.rev_3m,backgroundColor:'#10b981'},{label:'Other',data:S.rev_other,backgroundColor:'#cbd5e1'}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:10}}},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,beginAtZero:true,grid:{color:'#f1f5f9'}}}}});})();
+</script>
+{% endblock %}

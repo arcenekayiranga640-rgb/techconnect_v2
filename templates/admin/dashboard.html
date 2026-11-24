@@ -1,0 +1,81 @@
+{% extends 'admin/_layout.html' %}
+{% from 'admin/_macros.html' import stat, plan_badge, verify_badge, days_cell with context %}
+{% block title %}Dashboard{% endblock %}
+{% block heading %}Analytics Dashboard{% endblock %}
+{% block subheading %}Live figures from your database · times shown in Rwanda time (CAT){% endblock %}
+{% block actions %}<a class="btn ghost sm" href="{{ url_for('admin.dashboard') }}">{{ icon('rotate-cw','ic-sm') }} Refresh</a>{% endblock %}
+{% block content %}
+{% if warn_default_pw %}
+<div class="banner danger">{{ icon('alert-triangle','ic-lg') }}
+  <div class="grow"><strong>You are still using the built-in admin password.</strong> It is visible in the source code. Change it now.</div>
+  <a class="btn danger sm" href="{{ url_for('admin.settings') }}">Change password</a></div>
+{% endif %}
+
+<div class="grid g3">
+  {{ stat('Total Revenue (RWF)', m.total_revenue|rwf, 'Unlocks ' ~ (m.unlock_revenue|rwf) ~ ' + subscriptions ' ~ (m.sub_revenue|rwf), 'wallet', 'blue') }}
+  {{ stat('Active 1-Month Subscribers', m.active_1m, '3,000 RWF plan · ' ~ (m.rev_1m|rwf) ~ ' RWF collected', 'user-check', 'green') }}
+  {{ stat('Active 3-Month Subscribers', m.active_3m, '7,000 RWF plan · ' ~ (m.rev_3m|rwf) ~ ' RWF collected', 'shield-check', 'green') }}
+</div>
+<div class="grid g3" style="margin-top:16px">
+  {{ stat('Client Contact Unlocks', m.unlocks, '200 RWF each · ' ~ (m.unlock_revenue|rwf) ~ ' RWF · ' ~ m.reuse_blocked ~ ' reuse attempts blocked', 'lock-open', 'amber') }}
+  {{ stat('Free-Trial Technicians', m.active_trial, '7-day trial on sign-up', 'sparkles', 'slate') }}
+  {{ stat('Active Churn Rate (30 days)', m.churn_rate ~ '%', m.churned_30d ~ ' paid plan' ~ ('' if m.churned_30d == 1 else 's') ~ ' lapsed without renewing', 'trending-down', 'red') }}
+</div>
+<div class="grid g4" style="margin-top:16px">
+  {{ stat('Technicians', m.technicians_total, 'All registered profiles', 'users', 'slate') }}
+  <a href="{{ url_for('admin.verifications') }}">{{ stat('Awaiting verification', m.pending_verifications, 'Review certificates →', 'hourglass', 'amber') }}</a>
+  <a href="{{ url_for('admin.retention_alerts') }}">{{ stat('Expiring within 7 days', m.expiring_7d, 'Open retention desk →', 'bell', 'amber') }}</a>
+  <a href="{{ url_for('admin.technicians', status='suspended') }}">{{ stat('Suspended accounts', m.suspended, 'Hidden from search', 'ban', 'red') }}</a>
+</div>
+
+<div class="sec-title">Revenue &amp; growth</div>
+<div class="grid g32">
+  <div class="panel"><div class="panel-h"><h2>Monthly Revenue Streams</h2><span class="sub">Unlocks vs 1-Month vs 3-Month · RWF · last 12 months</span></div>
+    <div class="chart-box"><canvas id="cRev"></canvas></div></div>
+  <div class="panel"><div class="panel-h"><h2>Technician Registrations</h2><span class="sub">New profiles per month</span></div>
+    <div class="chart-box"><canvas id="cReg"></canvas></div></div>
+</div>
+<div class="grid g2">
+  <div class="panel"><div class="panel-h"><h2>Technicians by Trade</h2></div><div class="chart-box"><canvas id="cTrade"></canvas></div></div>
+  <div class="panel"><div class="panel-h"><h2>Active Plan Mix</h2><span class="sub">1-Month 3,000 RWF · 3-Month 7,000 RWF</span></div><div class="chart-box"><canvas id="cPlan"></canvas></div></div>
+</div>
+
+<div class="sec-title">Live activity</div>
+<div class="grid g2">
+  <div class="panel"><div class="panel-h"><h2>Live Transaction Ledger</h2><div class="right"><a class="btn ghost sm" href="{{ url_for('admin.transactions') }}">View all</a></div></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Time</th><th>Type</th><th>Party</th><th class="right-al">RWF</th></tr></thead><tbody>
+    {% for r in recent %}<tr class="{{ 'dim' if r.status == 'voided' }}"><td class="nowrap">{{ r.created_at|cat_dt }}</td>
+      <td>{% if r.type == 'unlock' %}<span class="badge amber">Unlock</span>{% else %}<span class="badge blue">Subscription</span>{% endif %}{% if r.status == 'voided' %} <span class="badge red">Voided</span>{% endif %}</td>
+      <td><strong>{{ r.party }}</strong><div class="mono muted">{{ r.reference }}</div></td><td class="right-al"><strong>{{ r.amount|rwf }}</strong></td></tr>
+    {% else %}<tr><td colspan="4" class="empty">No transactions yet.</td></tr>{% endfor %}</tbody></table></div></div>
+  <div class="panel"><div class="panel-h"><h2>Expiring Soon</h2><div class="right"><a class="btn ghost sm" href="{{ url_for('admin.retention_alerts') }}">Retention desk</a></div></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Technician</th><th>Plan</th><th>Expires</th><th>Left</th></tr></thead><tbody>
+    {% for t in expiring %}<tr class="{{ 'danger' if t.days_left <= 1 else ('warn' if t.days_left <= 5) }}"><td><strong>{{ t.full_name }}</strong><div class="muted">{{ t.phone }}</div></td>
+      <td>{{ plan_badge(t) }}</td><td class="nowrap">{{ t.subscription_expires|cat_date }}</td><td>{{ days_cell(t) }}</td></tr>
+    {% else %}<tr><td colspan="4" class="empty">Nobody is expiring in the next 7 days.</td></tr>{% endfor %}</tbody></table></div></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+(function(){
+  var S={{ series|tojson }}, TR={{ trades|tojson }}, MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var labels=S.labels.map(function(m){var p=m.split('-');return MN[+p[1]-1]+' '+p[0].slice(2)});
+  if(typeof Chart==='undefined'){document.querySelectorAll('.chart-box').forEach(function(b){b.innerHTML='<p class="muted" style="padding:30px;text-align:center">Charts need an internet connection to load Chart.js.</p>'});return}
+  Chart.defaults.font.family='"Segoe UI",system-ui,sans-serif';Chart.defaults.font.size=11;Chart.defaults.color='#94a3b8';
+  var fmt=function(v){return v>=1000?(v/1000)+'k':v};
+  new Chart(document.getElementById('cRev'),{type:'line',data:{labels:labels,datasets:[
+    {label:'Client unlocks (200 RWF)',data:S.unlock_rev,borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,.08)',fill:true,tension:.35,borderWidth:2,pointRadius:3},
+    {label:'1-Month (3,000 RWF)',data:S.rev_1m,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,.08)',fill:true,tension:.35,borderWidth:2,pointRadius:3},
+    {label:'3-Month (7,000 RWF)',data:S.rev_3m,borderColor:'#10b981',backgroundColor:'rgba(16,185,129,.08)',fill:true,tension:.35,borderWidth:2,pointRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:10}}},scales:{y:{beginAtZero:true,ticks:{callback:fmt},grid:{color:'#f1f5f9'}},x:{grid:{display:false}}}}});
+  new Chart(document.getElementById('cReg'),{type:'bar',data:{labels:labels,datasets:[{label:'New technicians',data:S.registrations,backgroundColor:'#2563eb',borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0},grid:{color:'#f1f5f9'}},x:{grid:{display:false}}}}});
+  var pal=['#2563eb','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#ec4899','#f97316','#14b8a6','#64748b'];
+  new Chart(document.getElementById('cTrade'),{type:'pie',data:{labels:TR.map(function(t){return t[0]}),datasets:[{data:TR.map(function(t){return t[1]}),backgroundColor:pal,borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{boxWidth:10}}}}});
+  new Chart(document.getElementById('cPlan'),{type:'doughnut',data:{labels:['1-Month (3,000 RWF)','3-Month (7,000 RWF)','7-day trial'],datasets:[{data:[{{ m.active_1m }},{{ m.active_3m }},{{ m.active_trial }}],backgroundColor:['#2563eb','#10b981','#cbd5e1'],borderWidth:3,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom',labels:{boxWidth:10}}}}});
+})();
+</script>
+{% endblock %}
