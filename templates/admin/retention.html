@@ -7,7 +7,7 @@
 {% block actions %}
 <form method="post" action="{{ url_for('admin.retention_run') }}">{{ csrf() }}<button class="btn primary sm" {{ 'disabled' if not mail_ready }}>{{ icon('send','ic-sm') }} Run check now</button></form>{% endblock %}
 {% block content %}
-{% if not mail_ready %}<div class="banner warn">{{ icon('alert-triangle','ic-lg') }}<div class="grow"><strong>Email is not configured on this server.</strong> Reminders cannot be sent until <code>flask-mail</code> is installed and the mail credentials are set.</div></div>
+{% if not mail_ready %}<div class="banner warn">{{ icon('alert-triangle','ic-lg') }}<div class="grow"><strong>Email is not configured on this server.</strong> {{ mail_problem }}. Reminders cannot be sent until this is fixed (see EMAIL_SETUP.md).</div></div>
 {% elif not enabled %}<div class="banner warn">{{ icon('bell','ic-lg') }}<div class="grow"><strong>Automatic reminders are switched off.</strong> “Run check now” still works.</div><a class="btn ghost sm" href="{{ url_for('admin.settings') }}">Open settings</a></div>{% endif %}
 <div class="grid g4">
   {{ stat('Expire within 7 days', win_counts[7], 'Day -7 window', 'bell', 'amber') }}{{ stat('Within 3 days', win_counts[3], 'Day -3 window', 'bell', 'amber') }}

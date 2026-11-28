@@ -46,6 +46,15 @@ import json
 import uuid
 import re
 import calendar
+import hmac
+import logging
+import smtplib
+import ssl
+import sys
+import urllib.error
+import urllib.request
+from email.message import EmailMessage
+from email.utils import formataddr, parseaddr
 import shutil
 import time as _time
 
@@ -81,21 +90,221 @@ import admin_portal   # admin console (blueprint) - see admin_portal.py
 
 app = Flask(__name__)
 
-# ── Flask-Mail (Password Reset) ───────────────────────────────────────────────
-try:
-    from flask_mail import Mail, Message as MailMessage
-    app.config["MAIL_SERVER"]          = "smtp.gmail.com"
-    app.config["MAIL_PORT"]            = 587
-    app.config["MAIL_USE_TLS"]         = True
-    app.config["MAIL_USERNAME"]        = os.environ.get("MAIL_USERNAME", "techconnectsupport13@gmail.com")
-    app.config["MAIL_PASSWORD"]        = os.environ.get("MAIL_PASSWORD", "jmlyijvufeehlatj")
-    app.config["MAIL_DEFAULT_SENDER"]  = ("TechConnect Support", app.config["MAIL_USERNAME"])
-    mail = Mail(app)
-    MAIL_AVAILABLE = True
-except ImportError:
-    MAIL_AVAILABLE = False
-    mail = None
-    print("[MAIL] flask-mail not installed — email sending disabled. Run: pip install flask-mail")
+# ── Support address + e-mail (SMTP) configuration ─────────────────────────────
+# ONE support address for the whole site (footer, policy pages, e-mails, messages).
+# It is defined in admin_portal so both modules share it without a circular import.
+SUPPORT_EMAIL = admin_portal.SUPPORT_EMAIL
+IS_PRODUCTION = bool(os.environ.get("RENDER"))          # Render sets this variable automatically
+
+# All SMTP settings come from environment variables (set them in Render > Environment):
+#   MAIL_SERVER (smtp.gmail.com)  MAIL_PORT (587)  MAIL_USE_TLS (true)  MAIL_USE_SSL (false; true automatically on 465)
+#   MAIL_USERNAME (the support Gmail)  MAIL_PASSWORD (a 16-character Google *App Password*)
+#   MAIL_DEFAULT_SENDER (the support Gmail)
+def _env_bool(name, default):
+    raw = os.environ.get(name)
+    return default if raw is None or not raw.strip() else raw.strip().lower() in ("1", "true", "yes", "on")
+
+
+def _env_int(name, default):
+    try:
+        return int((os.environ.get(name) or "").strip() or default)
+    except ValueError:
+        return default
+
+
+mail_log = logging.getLogger("techconnect.mail")
+if not mail_log.handlers:
+    _h = logging.StreamHandler(sys.stderr)
+    _h.setFormatter(logging.Formatter("%(asctime)s [MAIL %(levelname)s] %(message)s"))
+    mail_log.addHandler(_h)
+mail_log.setLevel(logging.INFO)
+mail_log.propagate = False
+
+_mail_port = _env_int("MAIL_PORT", 587)
+_mail_ssl = _env_bool("MAIL_USE_SSL", _mail_port == 465)          # port 465 = implicit SSL
+_sender_name, _sender_addr = parseaddr(os.environ.get("MAIL_DEFAULT_SENDER", ""))
+app.config.update(
+    MAIL_SERVER=(os.environ.get("MAIL_SERVER") or "").strip() or "smtp.gmail.com",
+    MAIL_PORT=_mail_port,
+    MAIL_USE_SSL=_mail_ssl,
+    MAIL_USE_TLS=False if _mail_ssl else _env_bool("MAIL_USE_TLS", True),
+    MAIL_USERNAME=(os.environ.get("MAIL_USERNAME") or "").strip() or SUPPORT_EMAIL,
+    # Google shows App Passwords in four groups separated by spaces; the spaces are not part of the password.
+    MAIL_PASSWORD=(os.environ.get("MAIL_PASSWORD") or "").replace(" ", ""),
+    MAIL_DEFAULT_SENDER=(_sender_name or "TechConnect Support", _sender_addr or SUPPORT_EMAIL),
+    # OPTIONAL: send over HTTPS (port 443) instead of SMTP.  Needed on Render's FREE plan, which blocks SMTP ports.
+    BREVO_API_KEY=(os.environ.get("BREVO_API_KEY") or "").strip(),
+    BREVO_API_URL=(os.environ.get("BREVO_API_URL") or "").strip() or "https://api.brevo.com/v3/smtp/email",
+)
+MAIL_TIMEOUT = 20      # seconds for every SMTP network step
+
+
+def mail_problem():
+    """None when e-mail can be sent, otherwise a short, human-readable reason (for logs and the admin console)."""
+    if app.config["BREVO_API_KEY"]:
+        return None                          # HTTPS API configured: no SMTP credentials needed
+    if not app.config["MAIL_USERNAME"]:
+        return "MAIL_USERNAME is not set"
+    if not app.config["MAIL_PASSWORD"]:
+        return ("MAIL_PASSWORD is not set. Gmail needs a 16-character Google App Password "
+                "(Google Account > Security > 2-Step Verification > App passwords)")
+    return None
+
+
+def _mask_email(addr):
+    name, _, domain = (addr or "").partition("@")
+    return f"{name[:1]}***@{domain}" if domain else "***"
+
+
+class MailApiError(Exception):
+    """The HTTPS e-mail API answered with an error status."""
+    def __init__(self, status, detail):
+        super().__init__(f"HTTP {status}: {detail}")
+        self.status, self.detail = status, detail
+
+
+_RENDER_SMTP_HINT = (" IMPORTANT: Render's FREE web services block outbound SMTP (ports 25, 465 and 587), so a timeout here is "
+                     "most likely that block. Fix: upgrade the service to a paid instance, or set BREVO_API_KEY to send over HTTPS "
+                     "(see EMAIL_SETUP.md)")
+
+
+def _looks_like_blocked_smtp(exc):
+    """Timeouts / 'network unreachable' are what Render's free-plan SMTP block looks like (a plain 'connection
+    refused' is not: that means wrong host or port)."""
+    if not IS_PRODUCTION:
+        return False
+    if isinstance(exc, smtplib.SMTPServerDisconnected):
+        return "timed out" in str(exc).lower()
+    return isinstance(exc, TimeoutError) or getattr(exc, "errno", None) in (101, 110, 113)
+
+
+def describe_mail_error(exc):
+    """Turn an smtplib/socket/ssl/HTTP exception into a clear, actionable sentence for the logs."""
+    host, port = app.config["MAIL_SERVER"], app.config["MAIL_PORT"]
+    if isinstance(exc, MailApiError):
+        if exc.status in (401, 403):
+            return f"the e-mail API REJECTED THE API KEY (HTTP {exc.status}). Check BREVO_API_KEY. Server said: {exc.detail}"
+        if exc.status == 400 and "sender" in exc.detail.lower():
+            return (f"the e-mail API refused the sender address {app.config['MAIL_DEFAULT_SENDER'][1]}: it must be added and "
+                    f"verified under Senders in the Brevo dashboard. Server said: {exc.detail}")
+        return f"the e-mail API returned an error (HTTP {exc.status}): {exc.detail}"
+    if isinstance(exc, urllib.error.URLError):
+        return f"could not reach the e-mail API at {app.config['BREVO_API_URL']} ({exc.reason}). Check the internet connection / BREVO_API_URL"
+    if isinstance(exc, smtplib.SMTPAuthenticationError):
+        return ("the mail server REJECTED THE LOGIN. Gmail needs a 16-character Google App Password in MAIL_PASSWORD "
+                "(not the normal account password), 2-Step Verification must be on, and MAIL_USERNAME must be that account. "
+                f"Server said: {exc.smtp_code} {exc.smtp_error!r}")
+    if isinstance(exc, smtplib.SMTPNotSupportedError):
+        return f"the server does not support what was requested (check MAIL_USE_TLS / MAIL_PORT): {exc}"
+    if isinstance(exc, smtplib.SMTPSenderRefused):
+        return f"the sender address was refused ({exc.sender}): MAIL_DEFAULT_SENDER must be the logged-in Gmail account or one of its aliases"
+    if isinstance(exc, smtplib.SMTPRecipientsRefused):
+        return "the recipient address was refused by the mail server"
+    if isinstance(exc, smtplib.SMTPServerDisconnected):
+        return (f"the mail server closed the connection unexpectedly ({exc})."
+                + (_RENDER_SMTP_HINT if _looks_like_blocked_smtp(exc) else ""))
+    if isinstance(exc, ssl.SSLError):
+        return f"TLS/SSL problem talking to {host}:{port}. Use port 587 with MAIL_USE_TLS=true, or port 465 with MAIL_USE_SSL=true ({exc})"
+    if isinstance(exc, (TimeoutError, OSError)):
+        return (f"could not reach {host}:{port} ({exc.__class__.__name__}: {exc}). Check MAIL_SERVER / MAIL_PORT and that outbound SMTP is allowed."
+                + (_RENDER_SMTP_HINT if _looks_like_blocked_smtp(exc) else ""))
+    if isinstance(exc, smtplib.SMTPException):
+        return f"SMTP error: {exc}"
+    return f"{exc.__class__.__name__}: {exc}"
+
+
+def _smtp_send(to, subject, html, text=None):
+    """Send one message through the configured SMTP server using only the standard library."""
+    cfg = app.config
+    name, addr = cfg["MAIL_DEFAULT_SENDER"]
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = formataddr((name, addr))
+    msg["To"] = to
+    msg.set_content(text or re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html)).strip())
+    msg.add_alternative(html, subtype="html")
+    ctx = ssl.create_default_context()
+    if cfg["MAIL_USE_SSL"]:
+        server = smtplib.SMTP_SSL(cfg["MAIL_SERVER"], cfg["MAIL_PORT"], timeout=MAIL_TIMEOUT, context=ctx)
+    else:
+        server = smtplib.SMTP(cfg["MAIL_SERVER"], cfg["MAIL_PORT"], timeout=MAIL_TIMEOUT)
+    try:
+        server.ehlo()
+        if cfg["MAIL_USE_TLS"] and not cfg["MAIL_USE_SSL"]:
+            server.starttls(context=ctx)
+            server.ehlo()
+        if cfg["MAIL_USERNAME"] and cfg["MAIL_PASSWORD"]:
+            server.login(cfg["MAIL_USERNAME"], cfg["MAIL_PASSWORD"])
+        server.send_message(msg)
+    finally:
+        try:
+            server.quit()
+        except Exception:
+            pass
+
+
+def _api_send(to, subject, html, text=None):
+    """Send one message through the Brevo transactional-email HTTPS API (standard library only)."""
+    name, addr = app.config["MAIL_DEFAULT_SENDER"]
+    payload = {"sender": {"name": name, "email": addr}, "to": [{"email": to}], "subject": subject, "htmlContent": html,
+               "textContent": text or re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html)).strip()}
+    req = urllib.request.Request(app.config["BREVO_API_URL"], data=json.dumps(payload).encode("utf-8"), method="POST",
+                                 headers={"api-key": app.config["BREVO_API_KEY"], "content-type": "application/json",
+                                          "accept": "application/json", "user-agent": "TechConnect/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=MAIL_TIMEOUT) as resp:
+            resp.read()
+    except urllib.error.HTTPError as http_err:
+        raise MailApiError(http_err.code, http_err.read().decode("utf-8", "replace")[:300]) from None
+
+
+def _deliver(to, subject, html, text=None):
+    """Send and LOG the real outcome.  -> (ok, message).  Never raises."""
+    problem = mail_problem()
+    if problem:
+        mail_log.error("not sending %r to %s: %s", subject, _mask_email(to), problem)
+        return False, problem
+    try:
+        (_api_send if app.config["BREVO_API_KEY"] else _smtp_send)(to, subject, html, text)
+    except Exception as exc:
+        reason = describe_mail_error(exc)
+        mail_log.error("FAILED to send %r to %s: %s", subject, _mask_email(to), reason)
+        return False, reason
+    mail_log.info("sent %r to %s", subject, _mask_email(to))
+    return True, None
+
+
+def send_email_async(to, subject, html, text=None):
+    """Fire-and-forget: returns immediately so a slow mail server can never hold up (or time out) a web request.
+    The outcome, including any error, is written to the log by _deliver()."""
+    threading.Thread(target=_deliver, args=(to, subject, html, text), daemon=True, name="tc-mail").start()
+
+
+def send_email_safe(to, subject, html, timeout=25):
+    """Send and WAIT (used by the admin 'send test email' and reminder jobs).  -> (ok, error_message)"""
+    result = {}
+    th = threading.Thread(target=lambda: result.update(zip(("ok", "err"), _deliver(to, subject, html))), daemon=True, name="tc-mail")
+    th.start()
+    th.join(timeout)
+    if th.is_alive():
+        return False, f"The mail server did not answer within {timeout}s"
+    return result.get("ok", False), result.get("err")
+
+
+def _log_mail_status():
+    problem = mail_problem()
+    if problem:
+        mail_log.error("NOT READY: %s. Password-reset codes and reminder e-mails cannot be sent until this is fixed.", problem)
+    elif app.config["BREVO_API_KEY"]:
+        mail_log.info("ready: sending over the Brevo HTTPS API (works on Render's free plan); sender %s", app.config["MAIL_DEFAULT_SENDER"][1])
+    else:
+        c = app.config
+        mail_log.info("ready: %s:%s via %s as %s (sender %s)", c["MAIL_SERVER"], c["MAIL_PORT"],
+                      "SSL" if c["MAIL_USE_SSL"] else ("STARTTLS" if c["MAIL_USE_TLS"] else "plain SMTP"),
+                      c["MAIL_USERNAME"], c["MAIL_DEFAULT_SENDER"][1])
+
+
+_log_mail_status()
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _load_secret_key():
@@ -137,27 +346,6 @@ if os.environ.get("RENDER"):
     from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
-
-def send_email_safe(to, subject, html, timeout=15):
-    """Send one e-mail without ever blocking a web worker for long.  -> (ok, error_message)"""
-    if not (MAIL_AVAILABLE and mail):
-        return False, "Email is not configured (flask-mail is not installed)."
-    result = {"ok": False, "err": None}
-
-    def _send():
-        try:
-            with app.app_context():
-                mail.send(MailMessage(subject=subject, recipients=[to], html=html))
-            result["ok"] = True
-        except Exception as exc:
-            result["err"] = str(exc)[:300]
-
-    th = threading.Thread(target=_send, daemon=True)
-    th.start()
-    th.join(timeout)
-    if th.is_alive():
-        return False, f"The mail server did not respond within {timeout}s."
-    return result["ok"], result["err"]
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "techconnect.db")
@@ -256,6 +444,23 @@ TRANSLATIONS = {
         "profile_title":"My Profile","edit_btn":"Edit Profile","delete_btn":"Delete Profile",
         "cert_label":"Certificate:","view_file":"View uploaded file",
         "access_granted":"Access granted! You can now view all technician contacts for the next {hours} hours.",
+        # — password reset + account messages —
+        "reset_email_required":"Please enter a valid email address.",
+        "reset_if_exists":"If an account exists for {email}, a 6-digit reset code has been sent to it. The code expires in 5 minutes. Please also check your spam folder.",
+        "reset_mail_unavailable":"Our email service is temporarily unavailable, so we could not send your code. Please try again later or write to {support}.",
+        "reset_temp_error":"A temporary error occurred. Please try again.",
+        "reset_code_required":"Please enter the 6-digit code from your email.",
+        "reset_code_wrong":"That code is incorrect or has expired. Please check your email and try again, or request a new code.",
+        "reset_too_many":"Too many incorrect attempts. For your security, please request a new code.",
+        "reset_pw_weak":"Password must be 8+ characters with uppercase, lowercase, number and symbol.",
+        "reset_pw_mismatch":"Passwords do not match.",
+        "reset_pw_done":"Your password has been reset successfully. You can now log in.",
+        "account_suspended":"This account has been suspended. Please contact TechConnect support at {support}.",
+        "reset_email_subject":"TechConnect — Your Password Reset Code",
+        "reset_email_hello":"Hello",
+        "reset_email_intro":"Use the code below to reset your password. It expires in 5 minutes.",
+        "reset_email_ignore":"If you did not request this, you can safely ignore this email.",
+        "reset_email_help":"Need help? Write to {support}.",
         "already_active":"You already have active access. Contacts are visible.","expired":"expired — refresh page",
     },
     "fr": {
@@ -315,6 +520,23 @@ TRANSLATIONS = {
         "profile_title":"Mon Profil","edit_btn":"Modifier le Profil","delete_btn":"Supprimer le Profil",
         "cert_label":"Certificat :","view_file":"Voir le fichier téléchargé",
         "access_granted":"Accès accordé ! Vous pouvez voir toutes les coordonnées pendant {hours} heures.",
+        # — réinitialisation du mot de passe + messages du compte —
+        "reset_email_required":"Veuillez saisir une adresse e-mail valide.",
+        "reset_if_exists":"Si un compte existe pour {email}, un code de réinitialisation à 6 chiffres vient d'y être envoyé. Le code expire dans 5 minutes. Pensez aussi à vérifier vos courriers indésirables.",
+        "reset_mail_unavailable":"Notre service d'e-mail est temporairement indisponible, nous n'avons donc pas pu envoyer votre code. Veuillez réessayer plus tard ou écrire à {support}.",
+        "reset_temp_error":"Une erreur temporaire s'est produite. Veuillez réessayer.",
+        "reset_code_required":"Veuillez saisir le code à 6 chiffres reçu par e-mail.",
+        "reset_code_wrong":"Ce code est incorrect ou a expiré. Vérifiez votre e-mail et réessayez, ou demandez un nouveau code.",
+        "reset_too_many":"Trop de tentatives incorrectes. Pour votre sécurité, veuillez demander un nouveau code.",
+        "reset_pw_weak":"Le mot de passe doit contenir 8 caractères ou plus, avec majuscule, minuscule, chiffre et symbole.",
+        "reset_pw_mismatch":"Les mots de passe ne correspondent pas.",
+        "reset_pw_done":"Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter.",
+        "account_suspended":"Ce compte a été suspendu. Veuillez contacter le support TechConnect à {support}.",
+        "reset_email_subject":"TechConnect — Votre code de réinitialisation",
+        "reset_email_hello":"Bonjour",
+        "reset_email_intro":"Utilisez le code ci-dessous pour réinitialiser votre mot de passe. Il expire dans 5 minutes.",
+        "reset_email_ignore":"Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet e-mail.",
+        "reset_email_help":"Besoin d'aide ? Écrivez à {support}.",
         "already_active":"Vous avez déjà un accès actif. Les contacts sont visibles.","expired":"expiré — actualisez la page",
     }
 }
@@ -328,7 +550,7 @@ def get_t():
 @app.context_processor
 def inject_lang():
     lang = get_lang()
-    return {"lang": lang, "t": get_t()}
+    return {"lang": lang, "t": get_t(), "support_email": SUPPORT_EMAIL}
 
 
 @app.route("/select-plan")
@@ -745,6 +967,7 @@ def init_db():
     for col, defn in [
         ("reset_token",    "TEXT DEFAULT NULL"),
         ("token_expiration","TEXT DEFAULT NULL"),
+        ("reset_attempts", "INTEGER DEFAULT 0"),
         ("is_available",   "INTEGER DEFAULT 1"),
         ("avg_rating",     "REAL DEFAULT 0"),
         ("review_count",   "INTEGER DEFAULT 0"),
@@ -1095,7 +1318,7 @@ def login():
 
         if tech and check_password_hash(tech["password_hash"], password):
             if tech["is_suspended"]:
-                flash("This account has been suspended. Please contact TechConnect support.", "error")
+                flash(get_t()["account_suspended"].format(support=SUPPORT_EMAIL), "error")
                 return render_template("login.html")
             session["technician_id"] = tech["id"]
             flash(f"Welcome back, {tech['full_name']}!", "success")
@@ -1559,199 +1782,203 @@ def list_technicians():
 # PASSWORD RESET — 4-STEP FLOW
 # ══════════════════════════════════════════════════════════════════════════════
 
+RESET_CODE_MINUTES = 5           # how long a code stays valid
+RESET_RESEND_SECONDS = 60        # minimum gap between two e-mails for the same account
+RESET_MAX_ATTEMPTS = 5           # wrong guesses before the code is destroyed
+RESET_VERIFIED_SECONDS = 600     # time allowed to choose a new password after the code was accepted
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def build_reset_email(lang, name, code):
+    """Reset e-mail in the user's language.  -> (subject, html, plain_text)"""
+    tr = TRANSLATIONS.get(lang, TRANSLATIONS["en"])
+    help_line = tr["reset_email_help"].format(support=SUPPORT_EMAIL)
+    safe_name = _escape(name)
+    html = f"""
+    <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;">
+      <div style="background:#0F172A;padding:20px 28px;border-radius:12px 12px 0 0;">
+        <h2 style="color:white;margin:0;">TechConnect</h2>
+      </div>
+      <div style="background:#f8fafc;padding:28px;border-radius:0 0 12px 12px;border:1px solid #e2e8f0;">
+        <p style="color:#0F172A;font-size:1rem;">{tr["reset_email_hello"]} <strong>{safe_name}</strong>,</p>
+        <p style="color:#475569;">{tr["reset_email_intro"]}</p>
+        <div style="background:#0F172A;border-radius:10px;padding:20px;text-align:center;margin:24px 0;">
+          <span style="color:white;font-size:2.2rem;font-weight:800;letter-spacing:8px;">{code}</span>
+        </div>
+        <p style="color:#94a3b8;font-size:0.82rem;">{tr["reset_email_ignore"]}</p>
+        <p style="color:#94a3b8;font-size:0.82rem;">{_escape(help_line)}</p>
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
+        <p style="color:#94a3b8;font-size:0.78rem;margin:0;">The Tech Connection &nbsp;&middot;&nbsp; Kigali, Rwanda</p>
+      </div>
+    </div>"""
+    text = (f"{tr['reset_email_hello']} {name},\n\n{tr['reset_email_intro']}\n\n    {code}\n\n"
+            f"{tr['reset_email_ignore']}\n{help_line}\n\nThe Tech Connection - Kigali, Rwanda\n")
+    return tr["reset_email_subject"], html, text
+
+
 @app.route("/forgot-password", methods=["GET", "POST"])
 def forgot_password():
-    """Step 1 & 2 — Accept email, generate token, send reset email."""
-    if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
-        if not email:
-            flash("Please enter your email address.", "error")
-            return render_template("forgot_password.html", t=get_t(), lang=get_lang(), technician=current_technician())
+    """Step 1 - ask for the account e-mail and send a 6-digit code BY E-MAIL.
+    The answer is identical whether or not an account exists (no account enumeration), the code is
+    never written to the logs in production, and the send happens in the background so response time
+    does not reveal whether an e-mail was sent."""
+    t = get_t()
 
-        conn = None
-        try:
-            conn = get_db_connection()
+    def page():
+        return render_template("forgot_password.html", t=t, lang=get_lang(), technician=current_technician())
 
-            # Ensure reset columns exist on Render (in case migration didn't run)
-            for col, defn in [("reset_token", "TEXT DEFAULT NULL"), ("token_expiration", "TEXT DEFAULT NULL")]:
-                try:
-                    conn.execute(f"ALTER TABLE technicians ADD COLUMN {col} {defn}")
-                    conn.commit()
-                except Exception:
-                    pass  # Column already exists
+    if request.method != "POST":
+        return page()
 
-            tech = conn.execute(
-                "SELECT id, full_name FROM technicians WHERE email = ?", (email,)
-            ).fetchone()
+    email = request.form.get("email", "").strip().lower()
+    if not email or len(email) > 254 or not _EMAIL_RE.match(email):
+        flash(t["reset_email_required"], "error")
+        return page()
 
-            if not tech:
-                # Don't reveal whether email exists — security best practice
-                flash("If that email is registered, you will receive a reset code shortly.", "info")
-                return render_template("forgot_password.html", t=get_t(), lang=get_lang(), technician=current_technician())
+    # If the server itself cannot send mail, say so honestly (this does not depend on the address entered,
+    # so it reveals nothing about accounts).  In local development we carry on and print the code instead.
+    problem = mail_problem()
+    if problem and IS_PRODUCTION:
+        mail_log.error("a password reset was requested but e-mail cannot be sent: %s", problem)
+        flash(t["reset_mail_unavailable"].format(support=SUPPORT_EMAIL), "error")
+        return page()
 
-            # Generate 6-digit OTP code
-            reset_token = str(secrets.randbelow(900000) + 100000)
-            expiration  = (datetime.utcnow() + timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+    code, tech = None, None
+    conn = None
+    try:
+        conn = get_db_connection()
+        tech = conn.execute(
+            "SELECT id, full_name, reset_token, token_expiration FROM technicians "
+            "WHERE email = ? AND COALESCE(is_suspended, 0) = 0", (email,)).fetchone()
+        if tech:
+            recent = False                                    # one code per minute per account (stops e-mail flooding)
+            issued = admin_portal.from_db(tech["token_expiration"]) if tech["reset_token"] else None
+            if issued:
+                recent = (admin_portal.utcnow() - (issued - timedelta(minutes=RESET_CODE_MINUTES))).total_seconds() < RESET_RESEND_SECONDS
+            if not recent:
+                code = f"{secrets.randbelow(900000) + 100000}"
+                conn.execute(
+                    "UPDATE technicians SET reset_token = ?, token_expiration = ?, reset_attempts = 0 WHERE id = ?",
+                    (code, admin_portal.to_db(admin_portal.utcnow() + timedelta(minutes=RESET_CODE_MINUTES)), tech["id"]))
+                conn.commit()
+    except Exception as db_err:
+        mail_log.error("password-reset database error: %s", db_err)
+        flash(t["reset_temp_error"], "error")
+        return page()
+    finally:
+        if conn:
+            conn.close()
 
-            conn.execute(
-                "UPDATE technicians SET reset_token = ?, token_expiration = ? WHERE id = ?",
-                (reset_token, expiration, tech["id"])
-            )
-            conn.commit()
+    if code and tech:
+        subject, html, text = build_reset_email(get_lang(), tech["full_name"], code)
+        if problem:        # only reachable outside production (see above)
+            print(f"[DEV ONLY - e-mail not configured: {problem}] reset code for {email} is {code}", flush=True)
+        else:
+            mail_log.info("reset code issued for %s; sending e-mail", _mask_email(email))
+            send_email_async(email, subject, html, text)
 
-        except Exception as db_err:
-            print(f"[FORGOT PW DB ERROR] {db_err}", flush=True)
-            flash("A temporary error occurred. Please try again.", "error")
-            return render_template("forgot_password.html", t=get_t(), lang=get_lang(), technician=current_technician())
-        finally:
-            if conn:
-                conn.close()
-
-        # Send email in a background thread with a hard 8-second timeout
-        # so a hanging SMTP connection NEVER blocks the Render web worker.
-        email_sent = False
-        if MAIL_AVAILABLE and mail:
-            import threading
-            result = {"sent": False, "error": None}
-
-            def send_mail_thread():
-                try:
-                    with app.app_context():
-                        msg = MailMessage(
-                            subject="TechConnect — Your Password Reset Code",
-                            recipients=[email],
-                            html=f"""
-                            <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;">
-                              <div style="background:#0F172A;padding:20px 28px;border-radius:12px 12px 0 0;">
-                                <h2 style="color:white;margin:0;">TechConnect</h2>
-                              </div>
-                              <div style="background:#f8fafc;padding:28px;border-radius:0 0 12px 12px;border:1px solid #e2e8f0;">
-                                <p style="color:#0F172A;font-size:1rem;">Hello <strong>{tech["full_name"]}</strong>,</p>
-                                <p style="color:#475569;">Use the code below to reset your password. It expires in <strong>5 minutes</strong>.</p>
-                                <div style="background:#0F172A;border-radius:10px;padding:20px;text-align:center;margin:24px 0;">
-                                  <span style="color:white;font-size:2.2rem;font-weight:800;letter-spacing:8px;">{reset_token}</span>
-                                </div>
-                                <p style="color:#94a3b8;font-size:0.82rem;">If you did not request this, you can safely ignore this email.</p>
-                                <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
-                                <p style="color:#94a3b8;font-size:0.78rem;margin:0;">The Tech Connection &nbsp;&middot;&nbsp; Kigali, Rwanda</p>
-                              </div>
-                            </div>
-                            """
-                        )
-                        mail.send(msg)
-                        result["sent"] = True
-                except Exception as e:
-                    result["error"] = str(e)
-
-            t = threading.Thread(target=send_mail_thread, daemon=True)
-            t.start()
-            t.join(timeout=8)  # Wait max 8 seconds — then move on regardless
-
-            if result["sent"]:
-                email_sent = True
-                print(f"[MAIL] Reset code sent to {email}", flush=True)
-            elif t.is_alive():
-                print(f"[MAIL TIMEOUT] SMTP connection timed out after 8s — code logged below", flush=True)
-            else:
-                print(f"[MAIL ERROR] {result['error']}", flush=True)
-
-        # Always log to console so code is recoverable from Render logs
-        print(f"[RESET CODE] Email={email} | Code={reset_token} | Expires={expiration}", flush=True)
-
-        # Store email in session for next steps
-        session["reset_email"] = email
-        flash("A 6-digit reset code has been sent to your email. It expires in 5 minutes.", "success")
-        return redirect(url_for("verify_reset_code"))
-
-    return render_template("forgot_password.html", t=get_t(), lang=get_lang(), technician=current_technician())
+    session["reset_email"] = email
+    flash(t["reset_if_exists"].format(email=email), "success")
+    return redirect(url_for("verify_reset_code"))
 
 
 @app.route("/verify-reset-code", methods=["GET", "POST"])
 def verify_reset_code():
-    """Step 3 — Verify the 6-digit OTP code."""
+    """Step 2 - check the 6-digit code.  Wrong, expired and unknown-account all look the same, and the
+    number of wrong guesses is limited so the code cannot be brute-forced."""
     if not session.get("reset_email"):
         return redirect(url_for("forgot_password"))
+    t = get_t()
 
-    if request.method == "POST":
-        entered_code = request.form.get("code", "").strip()
-        email        = session.get("reset_email", "")
+    def page():
+        return render_template("verify_code.html", t=t, lang=get_lang(), technician=current_technician())
 
-        if not entered_code:
-            flash("Please enter the 6-digit code from your email.", "error")
-            return render_template("verify_code.html", t=get_t(), lang=get_lang(), technician=current_technician())
+    if request.method != "POST":
+        return page()
 
-        conn = get_db_connection()
+    email = session["reset_email"]
+    entered = re.sub(r"\D", "", request.form.get("code", ""))
+    if not entered:
+        flash(t["reset_code_required"], "error")
+        return page()
+
+    conn = get_db_connection()
+    try:
         tech = conn.execute(
-            "SELECT id, reset_token, token_expiration FROM technicians WHERE email = ?", (email,)
-        ).fetchone()
+            "SELECT id, reset_token, token_expiration, COALESCE(reset_attempts, 0) AS attempts "
+            "FROM technicians WHERE email = ?", (email,)).fetchone()
+        live = False
+        if tech and tech["reset_token"] and tech["attempts"] < RESET_MAX_ATTEMPTS:
+            exp = admin_portal.from_db(tech["token_expiration"])
+            live = bool(exp and admin_portal.utcnow() <= exp)
+        if live and hmac.compare_digest(entered, tech["reset_token"]):
+            conn.execute("UPDATE technicians SET reset_attempts = 0 WHERE id = ?", (tech["id"],))
+            conn.commit()
+            session["reset_verified"] = True
+            session["reset_verified_until"] = _time.time() + RESET_VERIFIED_SECONDS
+            session.pop("reset_guesses", None)
+            return redirect(url_for("reset_password"))
+
+        if tech and tech["reset_token"]:                      # a real pending code: count the wrong guess
+            attempts = tech["attempts"] + 1
+            too_many = attempts >= RESET_MAX_ATTEMPTS
+            if too_many:
+                conn.execute("UPDATE technicians SET reset_token = NULL, token_expiration = NULL, reset_attempts = 0 WHERE id = ?", (tech["id"],))
+            else:
+                conn.execute("UPDATE technicians SET reset_attempts = ? WHERE id = ?", (attempts, tech["id"]))
+            conn.commit()
+        else:                                                 # no such account / no code: behave the same way
+            session["reset_guesses"] = session.get("reset_guesses", 0) + 1
+            too_many = session["reset_guesses"] >= RESET_MAX_ATTEMPTS
+    finally:
         conn.close()
 
-        if not tech or not tech["reset_token"]:
-            flash("No reset request found. Please start over.", "error")
-            session.pop("reset_email", None)
-            return redirect(url_for("forgot_password"))
-
-        # Check expiration
-        try:
-            expiry = datetime.strptime(tech["token_expiration"], "%Y-%m-%d %H:%M:%S")
-        except (TypeError, ValueError):
-            flash("Invalid token data. Please request a new code.", "error")
-            return redirect(url_for("forgot_password"))
-
-        if datetime.utcnow() > expiry:
-            flash("Your code has expired. Please request a new one.", "error")
-            session.pop("reset_email", None)
-            return redirect(url_for("forgot_password"))
-
-        if entered_code != tech["reset_token"]:
-            flash("Incorrect code. Please check your email and try again.", "error")
-            return render_template("verify_code.html", t=get_t(), lang=get_lang(), technician=current_technician())
-
-        # Code verified — allow password reset
-        session["reset_verified"] = True
-        return redirect(url_for("reset_password"))
-
-    return render_template("verify_code.html", t=get_t(), lang=get_lang(), technician=current_technician())
+    if too_many:
+        session.pop("reset_email", None)
+        session.pop("reset_guesses", None)
+        flash(t["reset_too_many"], "error")
+        return redirect(url_for("forgot_password"))
+    flash(t["reset_code_wrong"], "error")
+    return page()
 
 
 @app.route("/reset-password", methods=["GET", "POST"])
 def reset_password():
-    """Step 4 — Set new password and clear the reset token."""
-    if not session.get("reset_email") or not session.get("reset_verified"):
+    """Step 3 - choose the new password (only shortly after the code was accepted)."""
+    verified = (session.get("reset_email") and session.get("reset_verified")
+                and session.get("reset_verified_until", 0) > _time.time())
+    if not verified:
+        session.pop("reset_verified", None)
+        session.pop("reset_verified_until", None)
         return redirect(url_for("forgot_password"))
+    t = get_t()
+
+    def page():
+        return render_template("reset_password.html", t=t, lang=get_lang(), technician=current_technician())
 
     if request.method == "POST":
-        password         = request.form.get("password", "")
-        confirm_password = request.form.get("confirm_password", "")
-        email            = session.get("reset_email", "")
-
+        password = request.form.get("password", "")
         if not is_strong_password(password):
-            flash("Password must be 8+ characters with uppercase, lowercase, number and symbol.", "error")
-            return render_template("reset_password.html", t=get_t(), lang=get_lang(), technician=current_technician())
+            flash(t["reset_pw_weak"], "error")
+            return page()
+        if password != request.form.get("confirm_password", ""):
+            flash(t["reset_pw_mismatch"], "error")
+            return page()
 
-        if password != confirm_password:
-            flash("Passwords do not match.", "error")
-            return render_template("reset_password.html", t=get_t(), lang=get_lang(), technician=current_technician())
-
-        password_hash = generate_password_hash(password)
         conn = get_db_connection()
-        conn.execute(
-            "UPDATE technicians SET password_hash = ?, reset_token = NULL, token_expiration = NULL WHERE email = ?",
-            (password_hash, email)
-        )
-        conn.commit()
-        conn.close()
-
-        # Clear reset session keys
-        session.pop("reset_email", None)
-        session.pop("reset_verified", None)
-
-        flash("Your password has been reset successfully. You can now log in.", "success")
+        try:
+            conn.execute(
+                "UPDATE technicians SET password_hash = ?, reset_token = NULL, token_expiration = NULL, reset_attempts = 0 "
+                "WHERE email = ?", (generate_password_hash(password), session["reset_email"]))
+            conn.commit()
+        finally:
+            conn.close()
+        for k in ("reset_email", "reset_verified", "reset_verified_until", "reset_guesses"):
+            session.pop(k, None)
+        flash(t["reset_pw_done"], "success")
         return redirect(url_for("login"))
 
-    return render_template("reset_password.html", t=get_t(), lang=get_lang(), technician=current_technician())
-
-
+    return page()
 
 
 @app.route("/api/technician/<int:tech_id>/preview")
@@ -2008,7 +2235,7 @@ except Exception as _e:
 
 # Admin console + background subscription-reminder scheduler
 admin_portal.init_app(app, db=get_db_connection, mailer=send_email_safe,
-                      mail_ready=lambda: bool(MAIL_AVAILABLE and mail))
+                      mail_ready=lambda: mail_problem() is None, mail_problem=mail_problem)
 
 
 if __name__ == '__main__':

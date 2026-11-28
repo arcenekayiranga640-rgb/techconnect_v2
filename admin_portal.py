@@ -49,6 +49,9 @@ PLAN_LABELS = {**{k: v["label"] for k, v in PLANS.items()}, "trial": "7-Day Tria
 TRIAL_DAYS = 7
 UNLOCK_PRICE = 200
 UNLOCK_HOURS = 24
+# The ONE support address for the whole site (footer, policies, e-mails).  It lives here so that
+# app.py and this module share a single value without a circular import.
+SUPPORT_EMAIL = "techconnectsupport13@gmail.com"
 PAYMENT_METHODS = ("cash", "momo", "bank", "complimentary", "other")
 ALERT_STAGES = ("7-day", "3-day", "1-day")
 STAGE_LABEL = {"7-day": "7-Day", "3-day": "3-Day", "1-day": "1-Day"}
@@ -64,7 +67,7 @@ LOGIN_WINDOW = 15 * 60                # 5 failures / 15 min / IP -> locked out
 CAT_OFFSET = timedelta(hours=2)       # Rwanda time (UTC+2); the DB stores UTC
 DB_FMT = "%Y-%m-%d %H:%M:%S"
 
-_deps = {"db": None, "mailer": None, "mail_ready": lambda: False}
+_deps = {"db": None, "mailer": None, "mail_ready": lambda: False, "mail_problem": lambda: None}
 
 
 def utcnow():
@@ -552,8 +555,10 @@ def build_reminder_email(name, stage, expires, plan, site_url):
         <p style="margin:22px 0;"><a href="{escape(link)}"
            style="background:#2563EB;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:700;display:inline-block;">
            Renew my plan</a></p>
-        <p style="margin:0;color:#94a3b8;font-size:0.82rem;">1-Month: 3,000 RWF &nbsp;·&nbsp; 3-Month: 7,000 RWF.
+        <p style="margin:0 0 8px;color:#94a3b8;font-size:0.82rem;">1-Month: 3,000 RWF &nbsp;·&nbsp; 3-Month: 7,000 RWF.
            Already renewed? You can ignore this message.</p>
+        <p style="margin:0;color:#94a3b8;font-size:0.82rem;">Questions? Write to
+           <a href="mailto:{SUPPORT_EMAIL}" style="color:#2563EB;">{SUPPORT_EMAIL}</a>.</p>
       </div>
       <p style="text-align:center;color:#94a3b8;font-size:0.75rem;margin-top:14px;">The Tech Connection · Kigali, Rwanda</p>
     </div>"""
@@ -1321,7 +1326,8 @@ def retention_alerts():
         if len(p) == 4:
             lr = {"at": p[0], "checked": p[1], "sent": p[2], "failed": p[3]}
     return render_template("admin/retention.html", rows=rows, log=log, win=win, win_counts=win_counts, sent30=sent30,
-                           failed=failed, enabled=enabled, last_run=lr, mail_ready=_deps["mail_ready"]())
+                           failed=failed, enabled=enabled, last_run=lr, mail_ready=_deps["mail_ready"](),
+                           mail_problem=_deps["mail_problem"]())
 
 
 @bp.route("/retention-alerts/run", methods=["POST"])
@@ -1385,6 +1391,7 @@ def settings():
     finally:
         conn.close()
     info["mail_ready"] = _deps["mail_ready"]()
+    info["mail_problem"] = _deps["mail_problem"]()
     info["secret_from_env"] = bool(os.environ.get("SECRET_KEY"))
     return render_template("admin/settings.html", cfg=cfg, audit_rows=audit_rows, info=info)
 
@@ -1419,7 +1426,7 @@ def settings_test_email():
     if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", to):
         flash("Enter a valid email address.", "error")
     elif not _deps["mail_ready"]():
-        flash("Email is not configured on this server (is flask-mail installed?).", "error")
+        flash(f"Email is not configured on this server: {_deps['mail_problem']() or 'unknown reason'}.", "error")
     else:
         ok, err = _deps["mailer"](to, "TechConnect test email", "<p>This is a test email from the TechConnect admin portal.</p>")
         flash(f"Test email sent to {to}." if ok else f"Could not send: {err}", "success" if ok else "error")
@@ -1542,8 +1549,8 @@ def start_scheduler(first_delay=45, interval=3600):
     return True
 
 
-def init_app(app, db, mailer, mail_ready):
-    _deps.update({"db": db, "mailer": mailer, "mail_ready": mail_ready})
+def init_app(app, db, mailer, mail_ready, mail_problem=None):
+    _deps.update({"db": db, "mailer": mailer, "mail_ready": mail_ready, "mail_problem": mail_problem or (lambda: None)})
     conn = db()
     try:
         ensure_schema(conn)

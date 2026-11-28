@@ -18,10 +18,10 @@ Admin console: `https://<your-site>/admin`  (local: `http://127.0.0.1:5001/admin
 |---|---|
 | `SECRET_KEY` | Signs login cookies. Generate: `python -c "import secrets; print(secrets.token_hex(32))"` |
 | `ADMIN_PASSWORD` | Your admin password (the built-in default is public). Passwords changed inside the portal live in the database, which Render's free tier erases on restart, so the variable is the durable one. |
-| `MAIL_PASSWORD` | Gmail app password. The old one is in your Git history: **create a new app password and revoke the old one.** |
+| `MAIL_PASSWORD` | Gmail App Password (16 characters). The old one is in your Git history: **create a new one and revoke the old one.** Full e-mail instructions, including Render's free-plan SMTP block: see `EMAIL_SETUP.md`. |
 | `SITE_URL` (optional) | Used in reminder-email links |
 
-`requirements.txt` must contain: `Flask`, `gunicorn`, `Flask-Mail` (plus what you already have: `requests`, `beautifulsoup4`, `Pillow`).
+`requirements.txt` must contain: `Flask`, `gunicorn` (plus what you already have: `requests`, `beautifulsoup4`, `Pillow`). `Flask-Mail` is no longer needed.
 
 ## 3. What happens on first start
 * New database tables/columns are created automatically (nothing to run by hand).

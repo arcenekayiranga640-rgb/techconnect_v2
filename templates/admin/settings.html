@@ -34,7 +34,7 @@
       <dt>Forms</dt><dd>CSRF token required on every admin action</dd>
       <dt>Certificates</dt><dd>Private folder, visible only to you and the owner</dd></dl></div></div>
     <div class="panel"><div class="panel-h"><h2>System</h2></div><div class="panel-b"><dl class="kv">
-      <dt>Email sending</dt><dd>{% if info.mail_ready %}<span class="badge green">Configured</span>{% else %}<span class="badge red">Not available</span>{% endif %}</dd>
+      <dt>Email sending</dt><dd>{% if info.mail_ready %}<span class="badge green">Configured</span>{% else %}<span class="badge red">Not available</span> <span class="muted">{{ info.mail_problem }}</span>{% endif %}</dd>
       <dt>Database size</dt><dd>{{ info.db_size_kb }} KB</dd><dt>Technicians</dt><dd>{{ info.technicians }}</dd>
       <dt>Unlock records</dt><dd>{{ info.unlocks }}</dd><dt>Subscription payments</dt><dd>{{ info.sub_payments }}</dd><dt>Audit entries</dt><dd>{{ info.audit_entries }}</dd></dl>
       <p class="muted" style="margin-top:12px;font-size:.78rem">On Render's free tier the database file is erased on every restart. Export your CSVs regularly.</p></div></div>
